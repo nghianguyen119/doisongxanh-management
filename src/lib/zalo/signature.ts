@@ -6,15 +6,25 @@ import { env } from "@/env";
  *   mac = SHA256(appId + rawBody + timestamp + OASecretKey)
  * Header: `X-ZEvent-Signature: mac=<hex>`
  *
- * Returns true when ZALO_OA_SECRET is unset (mock/dev) so local testing and
- * the simulator work without credentials.
+ * Fails CLOSED in live mode: without a verified signature anyone who learns
+ * an employee's Zalo user id could mark tasks done or file fake issue
+ * reports, so a live deployment missing ZALO_OA_SECRET rejects everything
+ * rather than trusting the caller. Verification is skipped only when the
+ * transport is `mock`, where the simulator posts unsigned events.
  */
 export function verifyZaloSignature(
   rawBody: string,
   signatureHeader: string | null,
   timestamp: string | undefined,
 ): boolean {
-  if (!env.ZALO_OA_SECRET || !env.ZALO_APP_ID) return true;
+  if (env.ZALO_TRANSPORT === "mock") return true;
+
+  if (!env.ZALO_OA_SECRET || !env.ZALO_APP_ID) {
+    console.error(
+      "[zalo] refusing webhook: ZALO_TRANSPORT=live requires ZALO_APP_ID and ZALO_OA_SECRET",
+    );
+    return false;
+  }
   if (!signatureHeader || !timestamp) return false;
 
   const provided = signatureHeader.replace(/^mac=/, "").trim().toLowerCase();

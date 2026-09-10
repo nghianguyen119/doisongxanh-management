@@ -6,10 +6,19 @@ import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
 import { copy } from "./bot-copy";
 import * as linking from "./employee-linking";
 import * as tasks from "./task-service";
+import type { TaskResult } from "./task-service";
 import * as notify from "./notification-service";
+import { isClosed } from "./task-status";
 
 const OPEN_STATUSES = ["assigned", "accepted", "in_progress", "blocked"] as const;
-const SKIP_WORDS = ["bỏ qua", "bo qua", "skip", "không", "khong"];
+const SKIP_WORDS = ["bỏ qua", "bo qua", "skip", "không", "khong", "ko"];
+
+/**
+ * A half-finished flow ("we asked for a photo") is abandoned after this long.
+ * Without it an employee who taps "Đã xong" and then wanders off stays stuck
+ * forever: every later message would be swallowed as a completion note.
+ */
+const STATE_TTL_MS = 30 * 60 * 1000;
 
 type EmployeeRow = typeof employee.$inferSelect;
 type ConvRow = typeof zaloConversation.$inferSelect;
@@ -26,22 +35,27 @@ async function findEmployee(zaloUserId: string): Promise<EmployeeRow | null> {
   );
 }
 
+/** Reads the conversation cursor, treating a stale in-flight state as idle. */
 async function getConversation(zaloUserId: string): Promise<ConvRow> {
-  const existing = await db.query.zaloConversation.findFirst({
-    where: eq(zaloConversation.zaloUserId, zaloUserId),
-  });
-  if (existing) return existing;
   const [row] = await db
     .insert(zaloConversation)
     .values({ zaloUserId })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      // No-op update so the row always comes back, new or existing.
+      target: zaloConversation.zaloUserId,
+      set: { zaloUserId },
+    })
     .returning();
-  return (
-    row ??
-    (await db.query.zaloConversation.findFirst({
-      where: eq(zaloConversation.zaloUserId, zaloUserId),
-    }))!
-  );
+
+  const expired =
+    row.state !== "idle" &&
+    Date.now() - row.updatedAt.getTime() > STATE_TTL_MS;
+
+  if (expired) {
+    await setState(zaloUserId, "idle");
+    return { ...row, state: "idle", context: {} };
+  }
+  return row;
 }
 
 async function setState(
@@ -68,6 +82,18 @@ async function openTasksFor(employeeId: string) {
   });
 }
 
+/**
+ * Turns a rejected mutation into something the employee can understand. The
+ * service already sent the happy-path acknowledgement.
+ */
+async function reportFailure(zaloUserId: string, res: TaskResult) {
+  if (res.ok) return;
+  await say(
+    zaloUserId,
+    res.reason === "not_found" ? copy.noActiveTask : copy.taskClosed,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Entry points (called by dispatch.ts)
 // ---------------------------------------------------------------------------
@@ -80,54 +106,49 @@ export async function handleInboundText(zaloUserId: string, text: string) {
   if (!emp) return handleUnlinkedText(zaloUserId, text);
 
   const conv = await getConversation(zaloUserId);
-  const ctxTaskId = (conv.context as { taskId?: string }).taskId;
+  const ctx = conv.context as { taskId?: string; note?: string };
 
   switch (conv.state) {
-    case "awaiting_issue_text":
-      if (ctxTaskId) {
-        await tasks.reportIssue({
-          taskId: ctxTaskId,
-          employeeId: emp.id,
-          text,
-        });
-      }
+    case "awaiting_issue_text": {
+      if (!ctx.taskId) break;
+      const res = await tasks.reportIssue({
+        taskId: ctx.taskId,
+        employeeId: emp.id,
+        text,
+      });
       await setState(zaloUserId, "idle");
-      return;
+      return reportFailure(zaloUserId, res);
+    }
 
-    case "awaiting_done_note":
-      if (ctxTaskId) {
-        await tasks.completeTask({
-          taskId: ctxTaskId,
-          employeeId: emp.id,
-          note: text,
-        });
-      }
+    case "awaiting_done_note": {
+      if (!ctx.taskId) break;
+      const res = await tasks.completeTask({
+        taskId: ctx.taskId,
+        employeeId: emp.id,
+        note: text,
+      });
       await setState(zaloUserId, "idle");
-      return;
+      return reportFailure(zaloUserId, res);
+    }
 
-    case "awaiting_done_photo":
+    case "awaiting_done_photo": {
+      if (!ctx.taskId) break;
       if (isSkip(text)) {
-        if (ctxTaskId) {
-          await tasks.completeTask({
-            taskId: ctxTaskId,
-            employeeId: emp.id,
-            note: (conv.context as { note?: string }).note ?? null,
-          });
-        }
+        const res = await tasks.completeTask({
+          taskId: ctx.taskId,
+          employeeId: emp.id,
+          note: ctx.note ?? null,
+        });
         await setState(zaloUserId, "idle");
-        return;
+        return reportFailure(zaloUserId, res);
       }
-      // treat as the completion note, still wait for the photo
-      await db
-        .update(zaloConversation)
-        .set({ context: { ...conv.context, note: text } })
-        .where(eq(zaloConversation.zaloUserId, zaloUserId));
-      await say(zaloUserId, copy.askDonePhoto);
-      return;
-
-    default:
-      return handleIdleText(zaloUserId, emp, text);
+      // Treat it as the completion note and keep waiting for the photo.
+      await setState(zaloUserId, "awaiting_done_photo", { ...ctx, note: text });
+      return say(zaloUserId, copy.askDonePhoto);
+    }
   }
+
+  return handleIdleText(zaloUserId, emp, text);
 }
 
 export async function handleInboundImage(zaloUserId: string, urls: string[]) {
@@ -138,14 +159,26 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
   const ctx = conv.context as { taskId?: string; note?: string };
 
   if (conv.state === "awaiting_done_photo" && ctx.taskId) {
-    await tasks.completeTask({
+    const res = await tasks.completeTask({
       taskId: ctx.taskId,
       employeeId: emp.id,
       note: ctx.note ?? null,
       attachmentUrls: urls,
     });
     await setState(zaloUserId, "idle");
-    return;
+    return reportFailure(zaloUserId, res);
+  }
+
+  if (conv.state === "awaiting_issue_text" && ctx.taskId) {
+    // Photo first, description still to come — attach it to the issue.
+    const res = await tasks.reportIssue({
+      taskId: ctx.taskId,
+      employeeId: emp.id,
+      text: "[hình ảnh sự cố]",
+      attachmentUrls: urls,
+    });
+    await setState(zaloUserId, "idle");
+    return reportFailure(zaloUserId, res);
   }
 
   const open = await openTasksFor(emp.id);
@@ -156,8 +189,7 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
       text: "[hình ảnh]",
       attachmentUrls: urls,
     });
-    await say(zaloUserId, copy.employeeCommentAck);
-    return;
+    return say(zaloUserId, copy.employeeCommentAck);
   }
   await say(zaloUserId, open.length === 0 ? copy.noActiveTask : copy.help);
 }
@@ -168,7 +200,7 @@ export async function handleFollow(zaloUserId: string) {
     if (emp.status === "inactive") {
       await db
         .update(employee)
-        .set({ status: "active" })
+        .set({ status: "active", updatedAt: new Date() })
         .where(eq(employee.id, emp.id));
     }
     return say(zaloUserId, copy.help);
@@ -183,7 +215,7 @@ export async function handleUnfollow(zaloUserId: string) {
   if (emp) {
     await db
       .update(employee)
-      .set({ status: "inactive" })
+      .set({ status: "inactive", updatedAt: new Date() })
       .where(eq(employee.id, emp.id));
   }
 }
@@ -221,30 +253,35 @@ async function handleTaskAction(
   if (!emp) return say(zaloUserId, copy.notLinkedHint);
 
   const t = await db.query.task.findFirst({ where: eq(task.id, taskId) });
-  if (!t || t.assigneeId !== emp.id) {
-    return say(zaloUserId, copy.noActiveTask);
-  }
+  if (!t) return say(zaloUserId, copy.noActiveTask);
+  if (t.assigneeId !== emp.id) return say(zaloUserId, copy.taskNotYours);
+
+  // Zalo buttons live in the chat forever; refuse taps on a finished task
+  // rather than resurrecting it.
+  if (isClosed(t.status)) return say(zaloUserId, copy.taskClosed);
 
   switch (action) {
     case "accept":
-      await tasks.acceptTask({ taskId, employeeId: emp.id });
-      return;
+      return reportFailure(
+        zaloUserId,
+        await tasks.acceptTask({ taskId, employeeId: emp.id }),
+      );
     case "start":
-      await tasks.startTask({ taskId, employeeId: emp.id });
-      return;
+      return reportFailure(
+        zaloUserId,
+        await tasks.startTask({ taskId, employeeId: emp.id }),
+      );
     case "done":
       await setState(zaloUserId, "awaiting_done_photo", { taskId });
-      await say(zaloUserId, copy.askDonePhoto);
-      return;
+      return say(zaloUserId, copy.askDonePhoto);
     case "issue":
       await setState(zaloUserId, "awaiting_issue_text", { taskId });
-      await say(zaloUserId, copy.askIssueText);
-      return;
+      return say(zaloUserId, copy.askIssueText);
     case "detail":
       await notify.sendTaskDetail(tasks.taskToCard(t), zaloUserId);
       return;
     default:
-      await say(zaloUserId, copy.help);
+      return say(zaloUserId, copy.help);
   }
 }
 
@@ -255,7 +292,10 @@ async function handleUnlinkedText(zaloUserId: string, text: string) {
       await setState(zaloUserId, "idle");
       return say(zaloUserId, copy.linkSuccess(res.name));
     }
-    return say(zaloUserId, copy.linkNotFound);
+    return say(
+      zaloUserId,
+      res.reason === "already_linked" ? copy.alreadyLinked : copy.linkNotFound,
+    );
   }
   return say(zaloUserId, copy.notLinkedHint);
 }

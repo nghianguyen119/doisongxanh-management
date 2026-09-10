@@ -1,13 +1,16 @@
-import { and, asc, count, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import {
   employee,
+  employeeInvite,
   task,
   taskAttachment,
   taskEvent,
+  taskStatus,
   user,
 } from "@/db/schema";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
+import type { TaskStatus } from "@/lib/workflow/task-status";
 
 export async function getDashboardData() {
   const statusRows = await db
@@ -22,6 +25,7 @@ export async function getDashboardData() {
   const overdue = await db.query.task.findMany({
     where: and(
       inArray(task.status, OPEN_TASK_STATUSES),
+      isNotNull(task.dueAt),
       lt(task.dueAt, new Date()),
     ),
     orderBy: asc(task.dueAt),
@@ -70,10 +74,34 @@ export type TaskFilters = {
   assigneeId?: string;
 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Filters come straight from the query string, so anything that reaches a
+ * Postgres enum or uuid column has to be validated first — otherwise
+ * `/tasks?status=bogus` is a 500 rather than an ignored filter.
+ */
+export function parseTaskFilters(sp: Record<string, unknown>): TaskFilters {
+  const status =
+    typeof sp.status === "string" &&
+    (taskStatus.enumValues as readonly string[]).includes(sp.status)
+      ? sp.status
+      : undefined;
+
+  const assigneeId =
+    typeof sp.assigneeId === "string" && UUID_RE.test(sp.assigneeId)
+      ? sp.assigneeId
+      : undefined;
+
+  return { status, assigneeId };
+}
+
 export async function listTasks(filters: TaskFilters = {}) {
   const where = [];
-  if (filters.status)
-    where.push(eq(task.status, filters.status as typeof task.status.enumValues[number]));
+  if (filters.status) {
+    where.push(eq(task.status, filters.status as TaskStatus));
+  }
   if (filters.assigneeId) where.push(eq(task.assigneeId, filters.assigneeId));
 
   return db.query.task.findMany({
@@ -141,7 +169,7 @@ export async function getEmployeeDetail(id: string) {
   const emp = await db.query.employee.findFirst({
     where: eq(employee.id, id),
     with: {
-      invites: { orderBy: desc(sql`created_at`) },
+      invites: { orderBy: desc(employeeInvite.createdAt) },
     },
   });
   if (!emp) return null;

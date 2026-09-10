@@ -4,22 +4,27 @@ import { BTN, copy, taskCardText, type TaskCardInput } from "./bot-copy";
 /**
  * Composes + sends the Vietnamese Zalo messages that correspond to task
  * lifecycle changes. Called by task-service after it has written the
- * task_event row. All functions are best-effort: a Zalo failure is logged by
- * the client but must not roll back the DB change.
+ * task_event row.
+ *
+ * Sends are best-effort — a Zalo outage must not roll back a DB change that
+ * already happened — so every function returns whether the message actually
+ * went out rather than throwing. Callers use that to avoid recording a
+ * "reminder_sent" event for a message that failed.
  */
 
-async function safe<T>(p: Promise<T>): Promise<void> {
+async function safe(p: Promise<unknown>): Promise<boolean> {
   try {
     await p;
+    return true;
   } catch (err) {
     console.error("[notification] send failed", err);
+    return false;
   }
 }
 
-export async function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
-  const client = getZaloClient();
-  await safe(
-    client.sendButtons(
+export function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendButtons(
       zaloUserId,
       taskCardText(task, copy.assignedHeading),
       [BTN.accept(task.id), BTN.issue(task.id), BTN.detail(task.id)],
@@ -27,8 +32,18 @@ export async function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
   );
 }
 
-export async function notifyAccepted(task: TaskCardInput, zaloUserId: string) {
-  await safe(
+export function notifyUpdated(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendButtons(
+      zaloUserId,
+      taskCardText(task, copy.updatedHeading),
+      [BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+    ),
+  );
+}
+
+export function notifyAccepted(task: TaskCardInput, zaloUserId: string) {
+  return safe(
     getZaloClient().sendButtons(zaloUserId, copy.acceptedAck, [
       BTN.start(task.id),
       BTN.done(task.id),
@@ -37,8 +52,8 @@ export async function notifyAccepted(task: TaskCardInput, zaloUserId: string) {
   );
 }
 
-export async function notifyStarted(task: TaskCardInput, zaloUserId: string) {
-  await safe(
+export function notifyStarted(task: TaskCardInput, zaloUserId: string) {
+  return safe(
     getZaloClient().sendButtons(zaloUserId, copy.startedAck, [
       BTN.done(task.id),
       BTN.issue(task.id),
@@ -46,42 +61,49 @@ export async function notifyStarted(task: TaskCardInput, zaloUserId: string) {
   );
 }
 
-export async function notifyDoneAck(zaloUserId: string) {
-  await safe(getZaloClient().sendText(zaloUserId, copy.doneAck));
+export function notifyDoneAck(zaloUserId: string) {
+  return safe(getZaloClient().sendText(zaloUserId, copy.doneAck));
 }
 
-export async function notifyIssueAck(zaloUserId: string) {
-  await safe(getZaloClient().sendText(zaloUserId, copy.issueAck));
+export function notifyIssueAck(zaloUserId: string) {
+  return safe(getZaloClient().sendText(zaloUserId, copy.issueAck));
 }
 
-export async function notifyVerified(zaloUserId: string) {
-  await safe(getZaloClient().sendText(zaloUserId, copy.verifiedNotice));
+export function notifyVerified(zaloUserId: string) {
+  return safe(getZaloClient().sendText(zaloUserId, copy.verifiedNotice));
 }
 
-export async function notifyCancelled(zaloUserId: string) {
-  await safe(getZaloClient().sendText(zaloUserId, copy.cancelledNotice));
+export function notifyCancelled(zaloUserId: string) {
+  return safe(getZaloClient().sendText(zaloUserId, copy.cancelledNotice));
 }
 
-export async function forwardManagerComment(zaloUserId: string, text: string) {
-  await safe(getZaloClient().sendText(zaloUserId, copy.managerComment(text)));
+export function forwardManagerComment(zaloUserId: string, text: string) {
+  return safe(getZaloClient().sendText(zaloUserId, copy.managerComment(text)));
 }
 
-export async function sendTaskDetail(task: TaskCardInput, zaloUserId: string) {
-  await safe(
+export function sendTaskDetail(task: TaskCardInput, zaloUserId: string) {
+  return safe(
     getZaloClient().sendButtons(
       zaloUserId,
-      taskCardText(task, "ℹ️ Chi tiết công việc:"),
+      taskCardText(task, copy.detailHeading),
       [BTN.done(task.id), BTN.issue(task.id)],
     ),
   );
 }
 
-export async function sendReminder(task: TaskCardInput, zaloUserId: string) {
-  await safe(
-    getZaloClient().sendButtons(zaloUserId, copy.reminder(task.title), [
-      BTN.done(task.id),
-      BTN.issue(task.id),
-      BTN.detail(task.id),
-    ]),
+export function sendReminder(
+  task: TaskCardInput,
+  zaloUserId: string,
+  overdue: boolean,
+) {
+  return safe(
+    getZaloClient().sendButtons(
+      zaloUserId,
+      taskCardText(
+        task,
+        overdue ? copy.reminderOverdue(task.title) : copy.reminderDue(task.title),
+      ),
+      [BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+    ),
   );
 }

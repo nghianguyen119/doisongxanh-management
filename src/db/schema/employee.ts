@@ -20,8 +20,8 @@ export const employee = pgTable(
     zaloUserId: text().unique(),
     zaloDisplayName: text(),
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
-    createdAt: timestamp().notNull().defaultNow(),
-    updatedAt: timestamp().notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("employee_status_idx").on(t.status)],
 );
@@ -38,10 +38,10 @@ export const employeeInvite = pgTable(
       .notNull()
       .references(() => employee.id, { onDelete: "cascade" }),
     code: text().notNull().unique(),
-    expiresAt: timestamp().notNull(),
-    consumedAt: timestamp(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    consumedAt: timestamp({ withTimezone: true }),
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
-    createdAt: timestamp().notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("employee_invite_code_idx").on(t.code)],
 );

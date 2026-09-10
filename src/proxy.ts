@@ -30,6 +30,6 @@ export const config = {
   // Guard everything except Next internals, auth API, the Zalo webhook,
   // dev endpoints and static assets.
   matcher: [
-    "/((?!api/auth|api/zalo|api/dev|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/auth|api/zalo|api/dev|api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

@@ -22,6 +22,9 @@ export const env = createEnv({
     ZALO_OA_SECRET: z.string().optional().default(""),
     ZALO_OA_ACCESS_TOKEN: z.string().optional().default(""),
     ZALO_OA_REFRESH_TOKEN: z.string().optional().default(""),
+
+    /** Bearer token guarding /api/cron/reminders. Unset = endpoint disabled. */
+    CRON_SECRET: z.string().optional().default(""),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -39,6 +42,7 @@ export const env = createEnv({
     ZALO_OA_SECRET: process.env.ZALO_OA_SECRET,
     ZALO_OA_ACCESS_TOKEN: process.env.ZALO_OA_ACCESS_TOKEN,
     ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
+    CRON_SECRET: process.env.CRON_SECRET,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
   emptyStringAsUndefined: false,
@@ -47,6 +51,26 @@ export const env = createEnv({
 });
 
 /** Manager emails allowed into the portal, normalised to lowercase. */
-export const allowedManagerEmails = env.ALLOWED_MANAGER_EMAILS.split(",")
+export const allowedManagerEmails = (env.ALLOWED_MANAGER_EMAILS ?? "")
+  .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
+
+/**
+ * An empty allowlist means "any Google account", which is only acceptable
+ * while setting up locally. Keep the escape hatch out of production.
+ */
+export function isManagerEmailAllowed(email: string): boolean {
+  if (allowedManagerEmails.length === 0) {
+    return process.env.NODE_ENV !== "production";
+  }
+  return allowedManagerEmails.includes(email.trim().toLowerCase());
+}
+
+/**
+ * The Zalo simulator injects arbitrary employee actions with no auth, so it
+ * requires both the mock transport and a non-production build.
+ */
+export function isSimulatorEnabled(): boolean {
+  return env.ZALO_TRANSPORT === "mock" && process.env.NODE_ENV !== "production";
+}

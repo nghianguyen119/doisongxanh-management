@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/db";
 import { zaloMessageLog } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { env } from "@/env";
+import { isSimulatorEnabled } from "@/env";
 import { dispatchInbound } from "@/lib/zalo/dispatch";
 import type { InboundEvent } from "@/lib/zalo/types";
 
@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
  *   { zaloUserId, kind: "user_info", name?, phone? }
  * Returns the updated message thread for that Zalo user.
  */
+const simulatorEnabled = isSimulatorEnabled;
+
 async function threadFor(zaloUserId: string) {
   const rows = await db.query.zaloMessageLog.findMany({
     where: eq(zaloMessageLog.zaloUserId, zaloUserId),
@@ -28,7 +30,7 @@ async function threadFor(zaloUserId: string) {
 }
 
 export async function GET(req: NextRequest) {
-  if (env.ZALO_TRANSPORT !== "mock") {
+  if (!simulatorEnabled()) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   const zaloUserId = req.nextUrl.searchParams.get("zaloUserId");
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (env.ZALO_TRANSPORT !== "mock") {
+  if (!simulatorEnabled()) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

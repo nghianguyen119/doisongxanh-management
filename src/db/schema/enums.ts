@@ -26,6 +26,7 @@ export const taskPriority = pgEnum("task_priority", [
 
 export const taskEventType = pgEnum("task_event_type", [
   "created",
+  "updated",
   "assigned",
   "status_changed",
   "comment",

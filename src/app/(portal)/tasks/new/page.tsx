@@ -29,7 +29,7 @@ export default async function NewTaskPage() {
                 <option value="urgent">Khẩn</option>
               </select>
             </Field>
-            <Field label="Hạn hoàn thành">
+            <Field label="Hạn hoàn thành" hint="Giờ Việt Nam.">
               <input type="datetime-local" name="dueAt" className={inputClass} />
             </Field>
           </div>

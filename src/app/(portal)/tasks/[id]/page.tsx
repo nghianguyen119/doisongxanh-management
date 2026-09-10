@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { format } from "date-fns";
+import { formatVN, toVNInputValue } from "@/lib/time";
 import { getTaskDetail, listActiveEmployeesForSelect } from "@/lib/queries";
+import { taskPriority } from "@/db/schema";
+import { isClosed } from "@/lib/workflow/task-status";
 import {
   TASK_EVENT_LABEL,
   TASK_PRIORITY_LABEL,
@@ -12,6 +14,7 @@ import {
   assignTaskAction,
   cancelTaskAction,
   commentTaskAction,
+  updateTaskAction,
   verifyTaskAction,
 } from "@/lib/actions/tasks";
 import { Badge, Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
@@ -24,6 +27,7 @@ export default async function TaskDetailPage({
   if (!data) notFound();
   const { task: t, managerName } = data;
   const employees = await listActiveEmployeesForSelect();
+  const closed = isClosed(t.status);
 
   function actorLabel(actorType: string, actorId: string | null) {
     if (actorType === "employee") return t.assignee?.name ?? "Nhân viên";
@@ -59,7 +63,7 @@ export default async function TaskDetailPage({
                 return (
                   <li key={e.id} className="text-sm">
                     <div className="text-xs text-muted">
-                      {format(e.createdAt, "dd/MM/yyyy HH:mm")} ·{" "}
+                      {formatVN(e.createdAt)} ·{" "}
                       {actorLabel(e.actorType, e.actorId)} ·{" "}
                       {TASK_EVENT_LABEL[e.type]}
                     </div>
@@ -141,7 +145,7 @@ export default async function TaskDetailPage({
               <div>
                 <dt className="text-muted">Hạn</dt>
                 <dd>
-                  {t.dueAt ? format(t.dueAt, "dd/MM/yyyy HH:mm") : "Không có"}
+                  {t.dueAt ? formatVN(t.dueAt) : "Không có"}
                 </dd>
               </div>
             </dl>
@@ -174,7 +178,7 @@ export default async function TaskDetailPage({
               </form>
             )}
 
-            {t.status !== "cancelled" && t.status !== "verified" && (
+            {!closed && (
               <form action={cancelTaskAction}>
                 <input type="hidden" name="taskId" value={t.id} />
                 <Button type="submit" variant="danger" className="w-full">
@@ -182,6 +186,57 @@ export default async function TaskDetailPage({
                 </Button>
               </form>
             )}
+          </Card>
+
+          <Card>
+            <details>
+              <summary className="cursor-pointer text-sm font-medium">
+                Sửa nội dung công việc
+              </summary>
+              <form action={updateTaskAction} className="mt-3 space-y-3">
+                <input type="hidden" name="taskId" value={t.id} />
+                <Field label="Tiêu đề">
+                  <input
+                    name="title"
+                    required
+                    defaultValue={t.title}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Mô tả">
+                  <textarea
+                    name="description"
+                    rows={3}
+                    defaultValue={t.description ?? ""}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Ưu tiên">
+                  <select
+                    name="priority"
+                    defaultValue={t.priority}
+                    className={inputClass}
+                  >
+                    {taskPriority.enumValues.map((p) => (
+                      <option key={p} value={p}>
+                        {TASK_PRIORITY_LABEL[p]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Hạn hoàn thành" hint="Giờ Việt Nam.">
+                  <input
+                    type="datetime-local"
+                    name="dueAt"
+                    defaultValue={toVNInputValue(t.dueAt)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Button type="submit" variant="ghost" className="w-full">
+                  Lưu thay đổi
+                </Button>
+              </form>
+            </details>
           </Card>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { desc, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { employee } from "@/db/schema";
-import { env } from "@/env";
+import { env, isSimulatorEnabled } from "@/env";
 import { Card, PageHeader } from "@/components/ui";
 import { Simulator } from "./simulator";
 
@@ -64,7 +64,7 @@ export default async function ZaloSettingsPage() {
         </Card>
       </div>
 
-      {env.ZALO_TRANSPORT === "mock" ? (
+      {isSimulatorEnabled() ? (
         <div className="mt-6">
           <Simulator
             linked={linked.map((e) => ({
@@ -76,7 +76,8 @@ export default async function ZaloSettingsPage() {
         </div>
       ) : (
         <Card className="mt-6 text-sm text-muted">
-          Công cụ mô phỏng chỉ hoạt động khi <code>ZALO_TRANSPORT=mock</code>.
+          Công cụ mô phỏng chỉ hoạt động khi <code>ZALO_TRANSPORT=mock</code> và
+          không chạy ở chế độ production.
         </Card>
       )}
     </div>

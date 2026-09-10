@@ -1,6 +1,10 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { listTasks } from "@/lib/queries";
+import { formatVNShort } from "@/lib/time";
+import {
+  listActiveEmployeesForSelect,
+  listTasks,
+  parseTaskFilters,
+} from "@/lib/queries";
 import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
@@ -11,8 +15,22 @@ import { taskStatus } from "@/db/schema";
 
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const sp = await searchParams;
-  const status = typeof sp.status === "string" ? sp.status : undefined;
-  const tasks = await listTasks({ status });
+  // Unvalidated values would reach a Postgres enum/uuid column and 500.
+  const filters = parseTaskFilters(sp);
+  const [tasks, employees] = await Promise.all([
+    listTasks(filters),
+    listActiveEmployeesForSelect(),
+  ]);
+  const { status, assigneeId } = filters;
+
+  const withFilter = (next: Partial<typeof filters>) => {
+    const q = new URLSearchParams();
+    const merged = { ...filters, ...next };
+    if (merged.status) q.set("status", merged.status);
+    if (merged.assigneeId) q.set("assigneeId", merged.assigneeId);
+    const s = q.toString();
+    return s ? `/tasks?${s}` : "/tasks";
+  };
 
   return (
     <div>
@@ -22,9 +40,9 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         action={<LinkButton href="/tasks/new">+ Tạo công việc</LinkButton>}
       />
 
-      <div className="mb-4 flex flex-wrap gap-2 text-sm">
+      <div className="mb-3 flex flex-wrap gap-2 text-sm">
         <Link
-          href="/tasks"
+          href={withFilter({ status: undefined })}
           className={`rounded-full border px-3 py-1 ${!status ? "border-primary bg-primary/10" : "border-border"}`}
         >
           Tất cả
@@ -32,10 +50,28 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         {taskStatus.enumValues.map((s) => (
           <Link
             key={s}
-            href={`/tasks?status=${s}`}
+            href={withFilter({ status: s })}
             className={`rounded-full border px-3 py-1 ${status === s ? "border-primary bg-primary/10" : "border-border"}`}
           >
             {TASK_STATUS_LABEL[s]}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 text-sm">
+        <Link
+          href={withFilter({ assigneeId: undefined })}
+          className={`rounded-full border px-3 py-1 ${!assigneeId ? "border-primary bg-primary/10" : "border-border"}`}
+        >
+          Mọi nhân viên
+        </Link>
+        {employees.map((e) => (
+          <Link
+            key={e.id}
+            href={withFilter({ assigneeId: e.id })}
+            className={`rounded-full border px-3 py-1 ${assigneeId === e.id ? "border-primary bg-primary/10" : "border-border"}`}
+          >
+            {e.name}
           </Link>
         ))}
       </div>
@@ -70,7 +106,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                     {TASK_PRIORITY_LABEL[t.priority]}
                   </td>
                   <td className="px-4 py-2">
-                    {t.dueAt ? format(t.dueAt, "dd/MM HH:mm") : "—"}
+                    {t.dueAt ? formatVNShort(t.dueAt) : "—"}
                   </td>
                   <td className="px-4 py-2">
                     <Badge tone={TASK_STATUS_TONE[t.status]}>

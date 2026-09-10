@@ -9,7 +9,9 @@ describe("bot-copy", () => {
         title: "Tưới cây sảnh",
         description: "Tưới đủ nước",
         priority: "high",
-        dueAt: new Date("2026-09-10T08:30:00"),
+        // 07:30Z — the employee must read this as 14:30, their local time,
+        // whatever timezone the server happens to run in.
+        dueAt: new Date("2026-09-10T07:30:00Z"),
       },
       "🔔 Bạn có công việc mới:",
     );
@@ -17,7 +19,7 @@ describe("bot-copy", () => {
     expect(text).toContain("📋 Tưới cây sảnh");
     expect(text).toContain("📝 Tưới đủ nước");
     expect(text).toContain("Mức ưu tiên: Cao");
-    expect(text).toContain("10/09/2026 08:30");
+    expect(text).toContain("⏰ Hạn: 10/09/2026 14:30");
   });
 
   it("omits the description line when there is none", () => {

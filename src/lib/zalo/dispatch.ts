@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { zaloMessageLog } from "@/db/schema";
 import * as conversation from "@/lib/workflow/conversation";
-import type { InboundEvent } from "./types";
+import type { InboundEvent, RawZaloWebhook } from "./types";
 
 /**
  * Single entry point for inbound Zalo events, used by both the real webhook
@@ -11,12 +11,28 @@ import type { InboundEvent } from "./types";
  * non-200 responses.
  */
 export async function dispatchInbound(event: InboundEvent): Promise<void> {
-  await db.insert(zaloMessageLog).values({
-    direction: "in",
-    zaloUserId: event.zaloUserId,
-    eventName: event.kind,
-    payload: (event.raw ?? event) as Record<string, unknown>,
-  });
+  const externalId = messageIdOf(event);
+
+  // Zalo re-delivers an event whenever a webhook call fails or times out.
+  // The unique index on external_id makes the insert the idempotency check:
+  // if nothing comes back we have already handled this exact message, so
+  // drop it rather than completing the task (or posting the comment) twice.
+  const [logged] = await db
+    .insert(zaloMessageLog)
+    .values({
+      direction: "in",
+      zaloUserId: event.zaloUserId,
+      eventName: event.kind,
+      externalId,
+      payload: (event.raw ?? event) as Record<string, unknown>,
+    })
+    .onConflictDoNothing({ target: zaloMessageLog.externalId })
+    .returning({ id: zaloMessageLog.id });
+
+  if (!logged) {
+    console.warn("[zalo:dispatch] ignoring duplicate delivery", externalId);
+    return;
+  }
 
   try {
     switch (event.kind) {
@@ -49,4 +65,15 @@ export async function dispatchInbound(event: InboundEvent): Promise<void> {
       error: String(err),
     });
   }
+}
+
+/**
+ * Zalo's own message id, when the event carries one. Follow/unfollow events
+ * do not, and neither do simulator-injected events; those get null, which the
+ * unique index ignores (Postgres treats NULLs as distinct) so they are always
+ * processed.
+ */
+function messageIdOf(event: InboundEvent): string | null {
+  const raw = event.raw as RawZaloWebhook | undefined;
+  return raw?.message?.msg_id ?? null;
 }

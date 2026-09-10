@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatVN } from "@/lib/time";
 import { BUTTON_PAYLOAD, type ZaloButton } from "@/lib/zalo/types";
 
 /**
@@ -21,7 +21,9 @@ const PRIORITY_LABEL: Record<TaskCardInput["priority"], string> = {
 };
 
 function fmtDue(due?: Date | null) {
-  return due ? format(due, "dd/MM/yyyy HH:mm") : "Không có hạn";
+  // Always Vietnam wall time — the employee reading this is in Vietnam even
+  // when the server is not. See src/lib/time.ts.
+  return due ? formatVN(due) : "Không có hạn";
 }
 
 export function taskCardText(t: TaskCardInput, heading: string): string {
@@ -71,6 +73,8 @@ export const copy = {
     `Đã kết nối tài khoản cho ${name}. ✅ Bạn sẽ nhận công việc tại đây.`,
   linkNotFound:
     "Mã mời không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại với quản lý.",
+  alreadyLinked:
+    "Mã mời này đã được dùng cho một tài khoản Zalo khác. Vui lòng liên hệ quản lý.",
   phoneLinkSuccess: (name: string) =>
     `Đã xác minh số điện thoại và kết nối tài khoản cho ${name}. ✅`,
   phoneLinkNotFound:
@@ -81,6 +85,8 @@ export const copy = {
 
   // Assignment lifecycle
   assignedHeading: "🔔 Bạn có công việc mới:",
+  updatedHeading: "✏️ Công việc vừa được cập nhật:",
+  detailHeading: "ℹ️ Chi tiết công việc:",
   acceptedAck:
     "Đã ghi nhận bạn NHẬN việc. Nhấn “▶️ Bắt đầu” khi bạn khởi công.",
   startedAck: "Đã bắt đầu công việc. Chúc bạn làm việc thuận lợi! 💪",
@@ -92,8 +98,16 @@ export const copy = {
   issueAck: "Đã gửi báo cáo sự cố cho quản lý. ⚠️ Vui lòng chờ phản hồi.",
   verifiedNotice: "Công việc của bạn đã được xác nhận HOÀN THÀNH. Cảm ơn bạn! 🎉",
   cancelledNotice: "Công việc đã được HUỶ bởi quản lý.",
-  reminder: (title: string) =>
-    `⏰ Nhắc việc: “${title}” sắp đến hạn hoặc đang chờ bạn xử lý.`,
+  reminderDue: (title: string) => `⏰ Nhắc việc: “${title}” sắp đến hạn.`,
+  reminderOverdue: (title: string) =>
+    `🔴 Công việc “${title}” đã QUÁ HẠN. Vui lòng cập nhật giúp quản lý.`,
+
+  /** A stale Zalo button from an already-closed task was tapped. */
+  taskClosed:
+    "Công việc này đã kết thúc nên không cập nhật được nữa. Nếu cần, vui lòng báo quản lý.",
+  taskNotYours: "Công việc này hiện không thuộc về bạn.",
+  stateExpired:
+    "Đã quá lâu nên mình huỷ thao tác trước đó. Bạn hãy bấm lại nút trên tin nhắn công việc nhé.",
 
   managerComment: (text: string) => `💬 Quản lý: ${text}`,
   employeeCommentAck: "Đã chuyển lời nhắn của bạn tới quản lý. 📨",

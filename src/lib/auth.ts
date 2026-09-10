@@ -5,7 +5,7 @@ import { APIError } from "better-auth/api";
 import { count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user as userTable } from "@/db/schema";
-import { allowedManagerEmails, env } from "@/env";
+import { env, isManagerEmailAllowed } from "@/env";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -37,17 +37,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (newUser) => {
-          const email = newUser.email.toLowerCase();
-
-          // Allowlist gate. Empty list = allow anyone (first-run local setup).
-          if (
-            allowedManagerEmails.length > 0 &&
-            !allowedManagerEmails.includes(email)
-          ) {
-            throw new APIError("FORBIDDEN", {
-              message: "Tài khoản này chưa được cấp quyền truy cập cổng quản lý.",
-            });
-          }
+          assertAllowed(newUser.email);
 
           // First user in the system becomes admin.
           const [{ value: existing }] = await db
@@ -55,11 +45,26 @@ export const auth = betterAuth({
             .from(userTable);
 
           return {
-            data: {
-              ...newUser,
-              role: existing === 0 ? "admin" : "manager",
-            },
+            data: { ...newUser, role: existing === 0 ? "admin" : "manager" },
           };
+        },
+      },
+    },
+    session: {
+      create: {
+        /**
+         * Re-check the allowlist on every sign-in, not just on account
+         * creation. Otherwise removing someone from ALLOWED_MANAGER_EMAILS
+         * after they leave the company would not actually lock them out —
+         * their existing user row would keep letting them back in.
+         */
+        before: async (newSession) => {
+          const owner = await db.query.user.findFirst({
+            where: eq(userTable.id, newSession.userId),
+            columns: { email: true },
+          });
+          if (owner) assertAllowed(owner.email);
+          return { data: newSession };
         },
       },
     },
@@ -67,12 +72,11 @@ export const auth = betterAuth({
   plugins: [nextCookies()],
 });
 
-export type Session = typeof auth.$Infer.Session;
-
-/** Promote an existing user to admin (used by the seed script). */
-export async function makeAdmin(email: string) {
-  await db
-    .update(userTable)
-    .set({ role: "admin" })
-    .where(eq(userTable.email, email.toLowerCase()));
+function assertAllowed(email: string) {
+  if (isManagerEmailAllowed(email)) return;
+  throw new APIError("FORBIDDEN", {
+    message: "Tài khoản này chưa được cấp quyền truy cập cổng quản lý.",
+  });
 }
+
+export type Session = typeof auth.$Infer.Session;

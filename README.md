@@ -76,6 +76,31 @@ the bot sends back.
    interaction window. Out-of-window messaging needs paid **ZNS templates** —
    not implemented here.
 
+> The webhook **fails closed**: in `live` mode a missing `ZALO_OA_SECRET`
+> rejects every request, because an unverified webhook would let anyone who
+> knows an employee's Zalo id complete tasks on their behalf.
+
+## Due-date reminders
+
+`/api/cron/reminders` nudges employees whose open task is due within 2 hours or
+already overdue, throttled to once per task per 12 hours. Set `CRON_SECRET` and
+call it hourly from any scheduler:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/reminders
+```
+
+It is idempotent, so running it more often than needed is harmless. Leaving
+`CRON_SECRET` unset disables the endpoint (503).
+
+## Timezone
+
+The company works in Vietnam, so every date shown (portal *and* Zalo bot) and
+every deadline a manager types is `Asia/Ho_Chi_Minh`, independent of the
+server's timezone — see [src/lib/time.ts](src/lib/time.ts). All timestamp
+columns are `timestamptz`. Use `formatVN` / `parseVNInput` rather than calling
+date-fns on a raw `Date`, or deadlines silently shift by 7 hours on a UTC host.
+
 ## Scripts
 
 | Command            | What                                              |
@@ -90,6 +115,7 @@ the bot sends back.
 | `pnpm db:push`     | Push schema without a migration (dev only)        |
 | `pnpm db:studio`   | Drizzle Studio                                    |
 | `pnpm db:seed`     | Seed demo data                                    |
+| `pnpm db:reset`    | Drop schemas, re-migrate, re-seed (dev only)      |
 | `pnpm auth:generate` | Regenerate `src/db/schema/auth.ts` from Better Auth options |
 
 ## Layout
@@ -103,18 +129,21 @@ src/
     api/zalo/webhook  real Zalo webhook (signature-verified)
     api/dev/zalo-inbound  mock-only simulator endpoint
   db/schema/         Drizzle tables (auth, employee, task, zalo) + enums
+    api/cron/reminders    due-date nudges (Bearer CRON_SECRET)
   lib/
     auth.ts          Better Auth server (Google + email allowlist + role)
     session.ts       requireUser / requireAdmin for server components
+    time.ts          Asia/Ho_Chi_Minh formatting + parsing (use this, not date-fns)
     zalo/            transport-agnostic client, mock + live adapters, parse, dispatch
     workflow/        Zalo-agnostic business logic
       task-service.ts        lifecycle mutations, each writes a task_event
+      task-status.ts         legal transitions; guards stale Zalo buttons
       notification-service.ts Vietnamese Zalo messages per lifecycle change
       conversation.ts        inbound state machine (buttons, issue/done flows)
       employee-linking.ts    invite code / phone share / manual Zalo id
       bot-copy.ts            every VN string the bot sends
     actions/         server actions used by portal forms
-    queries.ts       read helpers for portal pages
+    queries.ts       read helpers + query-string filter validation
   proxy.ts           Next 16 middleware (optimistic cookie gate)
 ```
 

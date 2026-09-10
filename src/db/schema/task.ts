@@ -27,11 +27,13 @@ export const task = pgTable(
     priority: taskPriority().notNull().default("normal"),
     assigneeId: uuid().references(() => employee.id, { onDelete: "set null" }),
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
-    dueAt: timestamp(),
-    assignedAt: timestamp(),
-    completedAt: timestamp(),
-    createdAt: timestamp().notNull().defaultNow(),
-    updatedAt: timestamp().notNull().defaultNow(),
+    dueAt: timestamp({ withTimezone: true }),
+    assignedAt: timestamp({ withTimezone: true }),
+    completedAt: timestamp({ withTimezone: true }),
+    /** Throttles the due-date nudges sent by /api/cron/reminders. */
+    lastRemindedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("task_status_idx").on(t.status),
@@ -57,7 +59,7 @@ export const taskEvent = pgTable(
     actorId: text(),
     /** free-form: { from, to, text, reason, ... } */
     payload: jsonb().$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: timestamp().notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("task_event_task_idx").on(t.taskId, t.createdAt)],
 );
@@ -73,7 +75,7 @@ export const taskAttachment = pgTable(
     kind: attachmentKind().notNull().default("image"),
     url: text().notNull(),
     source: text().notNull().default("zalo"),
-    createdAt: timestamp().notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("task_attachment_task_idx").on(t.taskId)],
 );

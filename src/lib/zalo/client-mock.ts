@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, zaloMessageLog } from "@/db/schema";
 import type { ZaloClient } from "./client";
@@ -56,12 +56,3 @@ export class MockZaloClient implements ZaloClient {
   }
 }
 
-/** Read the mock "conversation" for one Zalo user (newest last). */
-export async function readMockThread(zaloUserId: string, limit = 50) {
-  const rows = await db.query.zaloMessageLog.findMany({
-    where: and(eq(zaloMessageLog.zaloUserId, zaloUserId)),
-    orderBy: desc(zaloMessageLog.createdAt),
-    limit,
-  });
-  return rows.reverse();
-}

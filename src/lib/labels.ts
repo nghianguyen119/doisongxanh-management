@@ -47,6 +47,7 @@ export const EMPLOYEE_STATUS_LABEL: Record<EmployeeStatus, string> = {
 
 export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
   created: "Tạo công việc",
+  updated: "Sửa nội dung",
   assigned: "Giao việc",
   status_changed: "Đổi trạng thái",
   comment: "Trao đổi",

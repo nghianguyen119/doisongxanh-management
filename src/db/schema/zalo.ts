@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { conversationState, zaloDirection } from "./enums";
@@ -17,8 +18,8 @@ export const zaloOaToken = pgTable("zalo_oa_token", {
   id: text().primaryKey().default("default"),
   accessToken: text().notNull(),
   refreshToken: text().notNull(),
-  expiresAt: timestamp().notNull(),
-  updatedAt: timestamp().notNull().defaultNow(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
 /**
@@ -32,11 +33,20 @@ export const zaloMessageLog = pgTable(
     direction: zaloDirection().notNull(),
     zaloUserId: text(),
     eventName: text(),
+    /**
+     * Zalo's own `message.msg_id` for inbound events. Zalo re-delivers an
+     * event when a webhook call fails or times out, so this is the
+     * idempotency key that stops one tap being processed twice.
+     */
+    externalId: text(),
     payload: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     error: text(),
-    createdAt: timestamp().notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("zalo_message_log_created_idx").on(t.createdAt)],
+  (t) => [
+    index("zalo_message_log_created_idx").on(t.createdAt),
+    uniqueIndex("zalo_message_log_external_idx").on(t.externalId),
+  ],
 );
 
 /**
@@ -50,5 +60,5 @@ export const zaloConversation = pgTable("zalo_conversation", {
   context: jsonb().$type<Record<string, unknown>>().notNull().default({}),
   /** step counter, handy for timeouts / debugging */
   turn: integer().notNull().default(0),
-  updatedAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

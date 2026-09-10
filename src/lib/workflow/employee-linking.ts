@@ -22,6 +22,17 @@ export async function generateInvite(
   employeeId: string,
   createdBy: string | null,
 ): Promise<{ code: string; expiresAt: Date }> {
+  // Issuing a new code revokes any earlier one, so a code read out over the
+  // phone weeks ago cannot still be redeemed by whoever overheard it.
+  await db
+    .delete(employeeInvite)
+    .where(
+      and(
+        eq(employeeInvite.employeeId, employeeId),
+        isNull(employeeInvite.consumedAt),
+      ),
+    );
+
   const code = makeCode();
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
   await db

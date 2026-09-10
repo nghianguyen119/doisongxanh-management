@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
+import { formatVN } from "@/lib/time";
 import { getEmployeeDetail } from "@/lib/queries";
 import {
   generateInviteAction,
@@ -50,7 +50,7 @@ export default async function EmployeeDetailPage({
               <p className="text-sm">
                 Mã: <span className="font-mono text-base">{activeInvite.code}</span>
                 <span className="block text-xs text-muted">
-                  Hết hạn {format(activeInvite.expiresAt, "dd/MM/yyyy HH:mm")}.
+                  Hết hạn {formatVN(activeInvite.expiresAt)}.
                   Nhân viên gửi mã này cho Zalo OA.
                 </span>
               </p>
