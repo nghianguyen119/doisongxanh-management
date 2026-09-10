@@ -1,0 +1,52 @@
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+/**
+ * Validated environment variables. Import from here instead of reading
+ * `process.env` directly so a missing/misspelled var fails fast at boot.
+ */
+export const env = createEnv({
+  server: {
+    DATABASE_URL: z.string().url(),
+
+    BETTER_AUTH_SECRET: z.string().min(16),
+    BETTER_AUTH_URL: z.string().url(),
+
+    GOOGLE_CLIENT_ID: z.string().optional().default(""),
+    GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
+    ALLOWED_MANAGER_EMAILS: z.string().optional().default(""),
+
+    ZALO_TRANSPORT: z.enum(["mock", "live"]).default("mock"),
+    ZALO_APP_ID: z.string().optional().default(""),
+    ZALO_APP_SECRET: z.string().optional().default(""),
+    ZALO_OA_SECRET: z.string().optional().default(""),
+    ZALO_OA_ACCESS_TOKEN: z.string().optional().default(""),
+    ZALO_OA_REFRESH_TOKEN: z.string().optional().default(""),
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: z.string().url(),
+  },
+  runtimeEnv: {
+    DATABASE_URL: process.env.DATABASE_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,
+    ZALO_TRANSPORT: process.env.ZALO_TRANSPORT,
+    ZALO_APP_ID: process.env.ZALO_APP_ID,
+    ZALO_APP_SECRET: process.env.ZALO_APP_SECRET,
+    ZALO_OA_SECRET: process.env.ZALO_OA_SECRET,
+    ZALO_OA_ACCESS_TOKEN: process.env.ZALO_OA_ACCESS_TOKEN,
+    ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  },
+  emptyStringAsUndefined: false,
+  skipValidation:
+    !!process.env.SKIP_ENV_VALIDATION || process.env.NODE_ENV === "test",
+});
+
+/** Manager emails allowed into the portal, normalised to lowercase. */
+export const allowedManagerEmails = env.ALLOWED_MANAGER_EMAILS.split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);

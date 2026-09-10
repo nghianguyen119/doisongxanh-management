@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dsx_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dsx
+      POSTGRES_PASSWORD: dsx
+      POSTGRES_DB: dsx
+    ports:
+      - "5432:5432"
+    volumes:
+      - dsx_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dsx -d dsx"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dsx_pgdata:
