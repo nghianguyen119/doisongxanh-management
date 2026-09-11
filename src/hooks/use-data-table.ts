@@ -56,25 +56,34 @@ export function useDataTable<TData extends RowData>({
   getRowId,
   initialState,
 }: UseDataTableProps<TData>) {
+  // `shallow: false` is required with the Next.js App Router adapter: without
+  // it nuqs only rewrites the URL and the server components that read those
+  // params never re-render, so filtering/sorting/paging would appear dead.
+  const queryOptions = {
+    history: "replace",
+    shallow: false,
+    limitUrlUpdates: throttle(200),
+  } as const
+
   const [page, setPage] = useQueryState(
     PAGE_KEY,
-    parseAsInteger.withDefault(1).withOptions({ limitUrlUpdates: throttle(200) })
+    parseAsInteger.withDefault(1).withOptions(queryOptions)
   )
   const [perPage, setPerPage] = useQueryState(
     PER_PAGE_KEY,
     parseAsInteger
       .withDefault(initialState?.pageSize ?? 10)
-      .withOptions({ limitUrlUpdates: throttle(200) })
+      .withOptions(queryOptions)
   )
   const [sortParam, setSortParam] = useQueryState(
     SORT_KEY,
-    parseAsString.withOptions({ limitUrlUpdates: throttle(200) })
+    parseAsString.withOptions(queryOptions)
   )
   const [filterParam, setFilterParam] = useQueryState(
     FILTERS_KEY,
     parseAsJson<ExtendedColumnFilter[]>((value) =>
       isExtendedColumnFilterArray(value) ? value : null
-    ).withOptions({ limitUrlUpdates: throttle(200) })
+    ).withOptions(queryOptions)
   )
 
   const pagination: PaginationState = React.useMemo(
