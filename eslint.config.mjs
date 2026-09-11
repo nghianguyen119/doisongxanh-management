@@ -15,6 +15,10 @@ const eslintConfig = defineConfig([
     // shadcn/ui generated files (base-nova registry):
     "src/components/ui/**",
     "src/hooks/use-mobile.ts",
+    // Generated design-system sync artifacts (see .gitignore):
+    "ds-bundle/**",
+    ".ds-sync/**",
+    ".design-sync/**",
   ]),
 ]);
 
