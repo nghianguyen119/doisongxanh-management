@@ -45,6 +45,12 @@ export const EMPLOYEE_STATUS_LABEL: Record<EmployeeStatus, string> = {
   inactive: "Ngừng",
 };
 
+export const EMPLOYEE_STATUS_TONE: Record<EmployeeStatus, string> = {
+  invited: "bg-amber-100 text-amber-800",
+  active: "bg-emerald-100 text-emerald-700",
+  inactive: "bg-gray-200 text-gray-500",
+};
+
 export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
   created: "Tạo công việc",
   updated: "Sửa nội dung",

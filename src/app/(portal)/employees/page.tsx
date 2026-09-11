@@ -1,89 +1,59 @@
-import Link from "next/link";
-import { listEmployees } from "@/lib/queries";
-import { createEmployeeAction } from "@/lib/actions/employees";
-import { EMPLOYEE_STATUS_LABEL } from "@/lib/labels";
-import { PageHeader, inputClass } from "@/components/ui";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import {
+  createSearchParamsCache,
+  parseAsInteger,
+  parseAsJson,
+  parseAsString,
+} from "nuqs/server";
+import { listEmployeesPage } from "@/lib/queries";
+import {
+  EMPLOYEE_STATUS_LABEL,
+  EMPLOYEE_STATUS_TONE,
+} from "@/lib/labels";
+import { PageHeader } from "@/components/ui";
+import { AddEmployeeDrawer } from "@/components/add-employee-drawer";
+import {
+  EmployeesTable,
+  type EmployeeRow,
+} from "@/components/employees-table";
+import { isExtendedColumnFilterArray } from "@/lib/data-table";
+import type { ExtendedColumnFilter } from "@/types/data-table";
 
-export default async function EmployeesPage() {
-  const employees = await listEmployees();
+const searchParamsCache = createSearchParamsCache({
+  page: parseAsInteger.withDefault(1),
+  perPage: parseAsInteger.withDefault(10),
+  sort: parseAsString,
+  filters: parseAsJson<ExtendedColumnFilter[]>((value) =>
+    isExtendedColumnFilterArray(value) ? value : null,
+  ),
+});
+
+export default async function EmployeesPage({
+  searchParams,
+}: PageProps<"/employees">) {
+  const params = searchParamsCache.parse(await searchParams);
+  const { data, pageCount } = await listEmployeesPage(params);
+
+  const rows: EmployeeRow[] = data.map((e) => ({
+    id: e.id,
+    name: e.name,
+    position: e.position,
+    phone: e.phone ?? "—",
+    zalo: Boolean(e.zaloUserId),
+    open: Number(e.open),
+    status: e.status,
+    statusLabel: EMPLOYEE_STATUS_LABEL[e.status],
+    statusTone: EMPLOYEE_STATUS_TONE[e.status],
+  }));
 
   return (
     <div>
       <PageHeader
         title="Nhân viên"
         description="Danh sách nhân viên và trạng thái kết nối Zalo."
+        action={<AddEmployeeDrawer />}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 font-medium">Tên</th>
-                <th className="px-4 py-2 font-medium">SĐT</th>
-                <th className="px-4 py-2 font-medium">Zalo</th>
-                <th className="px-4 py-2 font-medium">Việc mở</th>
-                <th className="px-4 py-2 font-medium">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {employees.map((e) => (
-                <tr key={e.id} className="hover:bg-background">
-                  <td className="px-4 py-2">
-                    <Link
-                      href={`/employees/${e.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {e.name}
-                    </Link>
-                    {e.position && (
-                      <span className="block text-xs text-muted-foreground">
-                        {e.position}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">{e.phone ?? "—"}</td>
-                  <td className="px-4 py-2">
-                    {e.zaloUserId ? "✅ Đã kết nối" : "—"}
-                  </td>
-                  <td className="px-4 py-2">{Number(e.open)}</td>
-                  <td className="px-4 py-2">
-                    <Badge>{EMPLOYEE_STATUS_LABEL[e.status]}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <Card className="gap-0 p-5">
-          <h2 className="mb-3 font-semibold">Thêm nhân viên</h2>
-          <form action={createEmployeeAction} className="space-y-3">
-            <Field>
-              <FieldLabel htmlFor="name">Tên</FieldLabel>
-              <input id="name" name="name" required className={inputClass} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="phone">Số điện thoại</FieldLabel>
-              <input id="phone" name="phone" className={inputClass} />
-              <FieldDescription>
-                Dùng để nhân viên tự kết nối bằng cách chia sẻ SĐT trên Zalo.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="position">Vị trí</FieldLabel>
-              <input id="position" name="position" className={inputClass} />
-            </Field>
-            <Button type="submit" className="w-full">
-              Thêm
-            </Button>
-          </form>
-        </Card>
-      </div>
+      <EmployeesTable data={rows} pageCount={pageCount} />
     </div>
   );
 }

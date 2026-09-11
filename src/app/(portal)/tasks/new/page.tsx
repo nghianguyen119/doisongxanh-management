@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listActiveEmployeesForSelect } from "@/lib/queries";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PageHeader, inputClass } from "@/components/ui";
@@ -70,7 +71,8 @@ export default async function NewTaskPage() {
               <option value="">— Chưa giao —</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.name} ({EMPLOYEE_STATUS_LABEL[e.status]})
+                  {e.name} ({EMPLOYEE_STATUS_LABEL[e.status]}
+                  {e.zaloUserId ? "" : ", chưa kết nối Zalo"})
                 </option>
               ))}
             </select>
@@ -78,7 +80,16 @@ export default async function NewTaskPage() {
               Bỏ trống để tạo nháp và giao sau. Nhân viên phải đã kết nối Zalo.
             </FieldDescription>
           </Field>
-          <Button type="submit">Tạo công việc</Button>
+          <div className="flex items-center gap-2">
+            <Button type="submit">Tạo công việc</Button>
+            <Button
+              variant="outline"
+              render={<Link href="/tasks" />}
+              nativeButton={false}
+            >
+              Quay lại
+            </Button>
+          </div>
         </form>
       </Card>
     </div>

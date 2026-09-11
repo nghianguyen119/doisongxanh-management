@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { user } from "@/db/schema";
 import { auth, type Session } from "@/lib/auth";
 import { isDevAuthBypassed } from "@/env";
 
@@ -10,6 +12,33 @@ const DEV_USER = {
   email: "dev@local",
   role: "admin",
 } as unknown as Session["user"];
+
+/**
+ * The bypassed session still has to exist as a real `user` row: every action
+ * writes `created_by`, which is a foreign key to `user.id`. Without this the
+ * first insert (e.g. adding an employee) fails with a FK violation.
+ */
+let devUserEnsured: Promise<void> | null = null;
+
+function ensureDevUser() {
+  devUserEnsured ??= db
+    .insert(user)
+    .values({
+      id: DEV_USER.id,
+      name: DEV_USER.name,
+      email: DEV_USER.email,
+      emailVerified: true,
+      role: "admin",
+    })
+    .onConflictDoNothing()
+    .then(() => undefined)
+    .catch((err) => {
+      // Let the next request retry if the DB was briefly unavailable.
+      devUserEnsured = null;
+      throw err;
+    });
+  return devUserEnsured;
+}
 
 export async function getSession() {
   return auth.api.getSession({ headers: await headers() });
@@ -22,7 +51,10 @@ export async function getSession() {
 export async function requireUser() {
   const session = await getSession();
   if (!session) {
-    if (isDevAuthBypassed()) return DEV_USER;
+    if (isDevAuthBypassed()) {
+      await ensureDevUser();
+      return DEV_USER;
+    }
     redirect("/login");
   }
   return session.user;

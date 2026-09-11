@@ -1,16 +1,30 @@
-import { and, asc, count, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  lt,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   employee,
   employeeInvite,
+  employeeStatus,
   task,
   taskAttachment,
   taskEvent,
+  taskPriority,
   taskStatus,
   user,
 } from "@/db/schema";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import type { TaskStatus } from "@/lib/workflow/task-status";
+import type { ExtendedColumnFilter } from "@/types/data-table";
 
 export async function getDashboardData() {
   const statusRows = await db
@@ -69,47 +83,139 @@ export async function getDashboardData() {
   return { statusCounts, overdue, workload, recent };
 }
 
-export type TaskFilters = {
-  status?: string;
-  assigneeId?: string;
+export type TableQueryParams = {
+  page: number;
+  perPage: number;
+  sort: string | null;
+  filters: ExtendedColumnFilter[] | null;
 };
+
+type TaskPriority = (typeof taskPriority.enumValues)[number];
+type EmployeeStatus = (typeof employeeStatus.enumValues)[number];
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * Filters come straight from the query string, so anything that reaches a
- * Postgres enum or uuid column has to be validated first — otherwise
- * `/tasks?status=bogus` is a 500 rather than an ignored filter.
- */
-export function parseTaskFilters(sp: Record<string, unknown>): TaskFilters {
-  const status =
-    typeof sp.status === "string" &&
-    (taskStatus.enumValues as readonly string[]).includes(sp.status)
-      ? sp.status
-      : undefined;
-
-  const assigneeId =
-    typeof sp.assigneeId === "string" && UUID_RE.test(sp.assigneeId)
-      ? sp.assigneeId
-      : undefined;
-
-  return { status, assigneeId };
+function getStringFilter(
+  filters: ExtendedColumnFilter[] | null,
+  id: string,
+): string | null {
+  const match = filters?.find((filter) => filter.id === id);
+  if (!match || typeof match.value !== "string") return null;
+  const value = match.value.trim();
+  return value || null;
 }
 
-export async function listTasks(filters: TaskFilters = {}) {
-  const where = [];
-  if (filters.status) {
-    where.push(eq(task.status, filters.status as TaskStatus));
-  }
-  if (filters.assigneeId) where.push(eq(task.assigneeId, filters.assigneeId));
+function getStringArrayFilter(
+  filters: ExtendedColumnFilter[] | null,
+  id: string,
+): string[] {
+  const match = filters?.find((filter) => filter.id === id);
+  return Array.isArray(match?.value) ? match.value : [];
+}
 
-  return db.query.task.findMany({
-    where: where.length ? and(...where) : undefined,
-    orderBy: [desc(task.updatedAt)],
+const isTaskStatus = (value: string): value is TaskStatus =>
+  (taskStatus.enumValues as readonly string[]).includes(value);
+
+const isTaskPriority = (value: string): value is TaskPriority =>
+  (taskPriority.enumValues as readonly string[]).includes(value);
+
+const isEmployeeStatus = (value: string): value is EmployeeStatus =>
+  (employeeStatus.enumValues as readonly string[]).includes(value);
+
+/**
+ * Filters arrive from the URL, so anything that reaches a Postgres enum or
+ * uuid column has to be validated first — otherwise `?filters=...` with a bad
+ * value is a 500 rather than an ignored filter.
+ */
+export function normalizeTaskFilters(filters: ExtendedColumnFilter[] | null) {
+  return {
+    title: getStringFilter(filters, "title"),
+    statuses: getStringArrayFilter(filters, "status").filter(isTaskStatus),
+    priorities: getStringArrayFilter(filters, "priority").filter(isTaskPriority),
+    assigneeIds: getStringArrayFilter(filters, "assignee").filter((id) =>
+      UUID_RE.test(id),
+    ),
+  };
+}
+
+export function normalizeEmployeeFilters(
+  filters: ExtendedColumnFilter[] | null,
+) {
+  return {
+    name: getStringFilter(filters, "name"),
+    statuses: getStringArrayFilter(filters, "status").filter(isEmployeeStatus),
+  };
+}
+
+function clampPage(value: number) {
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
+}
+
+function clampPerPage(value: number) {
+  if (!Number.isFinite(value) || value < 1) return 10;
+  return Math.min(Math.floor(value), 100);
+}
+
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function getTaskOrderBy(sort: string | null) {
+  const [id, direction] = (sort ?? "").split(".");
+  const order = direction === "asc" ? asc : desc;
+
+  switch (id) {
+    case "title":
+      return [order(task.title)];
+    case "status":
+      return [order(task.status)];
+    case "priority":
+      return [order(task.priority)];
+    case "due":
+      return [order(task.dueAt)];
+    case "assignee":
+      return [order(task.assigneeId)];
+    default:
+      return [desc(task.updatedAt)];
+  }
+}
+
+export async function listTasksPage(params: TableQueryParams) {
+  const page = clampPage(params.page);
+  const perPage = clampPerPage(params.perPage);
+  const { title, statuses, priorities, assigneeIds } = normalizeTaskFilters(
+    params.filters,
+  );
+
+  const conditions = [];
+  if (title) conditions.push(ilike(task.title, `%${escapeLike(title)}%`));
+  if (statuses.length) conditions.push(inArray(task.status, statuses));
+  if (priorities.length) conditions.push(inArray(task.priority, priorities));
+  if (assigneeIds.length)
+    conditions.push(inArray(task.assigneeId, assigneeIds));
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const [totalRows] = await db.select({ n: count() }).from(task).where(where);
+  const total = Number(totalRows?.n ?? 0);
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.min(page, pageCount);
+
+  const data = await db.query.task.findMany({
+    where,
+    orderBy: getTaskOrderBy(params.sort),
     with: { assignee: true },
-    limit: 200,
+    extras: {
+      overdue:
+        sql<boolean>`${task.dueAt} is not null and ${task.dueAt} < now()`.as(
+          "overdue",
+        ),
+    },
+    limit: perPage,
+    offset: (safePage - 1) * perPage,
   });
+
+  return { data, pageCount };
 }
 
 export async function getTaskDetail(id: string) {
@@ -119,6 +225,12 @@ export async function getTaskDetail(id: string) {
       assignee: true,
       events: { orderBy: asc(taskEvent.createdAt) },
       attachments: { orderBy: asc(taskAttachment.createdAt) },
+    },
+    extras: {
+      overdue:
+        sql<boolean>`${task.dueAt} is not null and ${task.dueAt} < now()`.as(
+          "overdue",
+        ),
     },
   });
   if (!t) return null;
@@ -142,27 +254,69 @@ export async function getTaskDetail(id: string) {
   return { task: t, managerName };
 }
 
-export async function listEmployees() {
-  return db
-    .select({
-      id: employee.id,
-      name: employee.name,
-      phone: employee.phone,
-      position: employee.position,
-      status: employee.status,
-      zaloUserId: employee.zaloUserId,
-      open: count(task.id),
-    })
-    .from(employee)
-    .leftJoin(
-      task,
-      and(
-        eq(task.assigneeId, employee.id),
-        inArray(task.status, OPEN_TASK_STATUSES),
-      ),
-    )
-    .groupBy(employee.id)
-    .orderBy(asc(employee.name));
+function getEmployeeOrderBy(sort: string | null) {
+  const [id, direction] = (sort ?? "").split(".");
+  const order = direction === "asc" ? asc : desc;
+
+  switch (id) {
+    case "name":
+      return [order(employee.name)];
+    case "phone":
+      return [order(employee.phone)];
+    case "status":
+      return [order(employee.status)];
+    case "open":
+      return [order(count(task.id))];
+    default:
+      return [asc(employee.name)];
+  }
+}
+
+export async function listEmployeesPage(params: TableQueryParams) {
+  const page = clampPage(params.page);
+  const perPage = clampPerPage(params.perPage);
+  const { name, statuses } = normalizeEmployeeFilters(params.filters);
+
+  const conditions = [];
+  if (name) conditions.push(ilike(employee.name, `%${escapeLike(name)}%`));
+  if (statuses.length) conditions.push(inArray(employee.status, statuses));
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const baseQuery = () =>
+    db
+      .select({
+        id: employee.id,
+        name: employee.name,
+        phone: employee.phone,
+        position: employee.position,
+        status: employee.status,
+        zaloUserId: employee.zaloUserId,
+        open: count(task.id),
+      })
+      .from(employee)
+      .leftJoin(
+        task,
+        and(
+          eq(task.assigneeId, employee.id),
+          inArray(task.status, OPEN_TASK_STATUSES),
+        ),
+      )
+      .where(where)
+      .groupBy(employee.id);
+
+  const [totalRows] = await db
+    .select({ n: count() })
+    .from(baseQuery().as("filtered_employees"));
+  const total = Number(totalRows?.n ?? 0);
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.min(page, pageCount);
+
+  const data = await baseQuery()
+    .orderBy(...getEmployeeOrderBy(params.sort))
+    .limit(perPage)
+    .offset((safePage - 1) * perPage);
+
+  return { data, pageCount };
 }
 
 export async function getEmployeeDetail(id: string) {
@@ -190,7 +344,12 @@ export async function getEmployeeDetail(id: string) {
 
 export async function listActiveEmployeesForSelect() {
   return db
-    .select({ id: employee.id, name: employee.name, status: employee.status })
+    .select({
+      id: employee.id,
+      name: employee.name,
+      status: employee.status,
+      zaloUserId: employee.zaloUserId,
+    })
     .from(employee)
     .where(inArray(employee.status, ["active", "invited"]))
     .orderBy(asc(employee.name));

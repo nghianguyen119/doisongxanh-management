@@ -1,44 +1,63 @@
 import { describe, expect, it, vi } from "vitest";
 
-// queries.ts pulls in the db client; the filter parser itself is pure.
+// queries.ts pulls in the db client; the normalizers themselves are pure.
 vi.mock("@/db", () => ({ db: {} }));
 
-const { parseTaskFilters } = await import("./queries");
+const { normalizeTaskFilters, normalizeEmployeeFilters } = await import(
+  "./queries"
+);
 
 /**
- * These values arrive straight from the query string. Anything that is not
- * dropped here reaches a Postgres enum or uuid column, where a bad value is a
- * 500 rather than an ignored filter.
+ * These values arrive straight from the URL (the `filters` nuqs param).
+ * Anything that is not dropped here reaches a Postgres enum or uuid column,
+ * where a bad value is a 500 rather than an ignored filter.
  */
-describe("parseTaskFilters", () => {
-  it("keeps a valid status and assignee", () => {
+describe("normalizeTaskFilters", () => {
+  it("keeps valid statuses, priorities, assignees and title", () => {
     expect(
-      parseTaskFilters({
-        status: "in_progress",
-        assigneeId: "11111111-2222-3333-4444-555555555555",
-      }),
+      normalizeTaskFilters([
+        { id: "title", value: "  schema  " },
+        { id: "status", value: ["in_progress", "bogus", "DONE"] },
+        { id: "priority", value: ["high", "nope"] },
+        {
+          id: "assignee",
+          value: ["11111111-2222-3333-4444-555555555555", "123", "1; drop"],
+        },
+      ]),
     ).toEqual({
-      status: "in_progress",
-      assigneeId: "11111111-2222-3333-4444-555555555555",
+      title: "schema",
+      statuses: ["in_progress"],
+      priorities: ["high"],
+      assigneeIds: ["11111111-2222-3333-4444-555555555555"],
     });
   });
 
-  it("drops a status that is not in the enum", () => {
-    expect(parseTaskFilters({ status: "bogus" }).status).toBeUndefined();
-    expect(parseTaskFilters({ status: "DONE" }).status).toBeUndefined();
-  });
-
-  it("drops a malformed assignee id", () => {
-    expect(parseTaskFilters({ assigneeId: "1; drop table task" }).assigneeId)
-      .toBeUndefined();
-    expect(parseTaskFilters({ assigneeId: "123" }).assigneeId).toBeUndefined();
-  });
-
-  it("ignores repeated params (arrays) and missing values", () => {
-    expect(parseTaskFilters({ status: ["done", "new"] }).status).toBeUndefined();
-    expect(parseTaskFilters({})).toEqual({
-      status: undefined,
-      assigneeId: undefined,
+  it("ignores missing filters and non-array list values", () => {
+    expect(normalizeTaskFilters(null)).toEqual({
+      title: null,
+      statuses: [],
+      priorities: [],
+      assigneeIds: [],
     });
+    expect(
+      normalizeTaskFilters([{ id: "status", value: "done" }]).statuses,
+    ).toEqual([]);
+  });
+});
+
+describe("normalizeEmployeeFilters", () => {
+  it("keeps a valid status and trims the name", () => {
+    expect(
+      normalizeEmployeeFilters([
+        { id: "name", value: "  An  " },
+        { id: "status", value: ["active", "bogus"] },
+      ]),
+    ).toEqual({ name: "An", statuses: ["active"] });
+  });
+
+  it("drops everything that is not in the enum", () => {
+    expect(
+      normalizeEmployeeFilters([{ id: "status", value: ["ACTIVE"] }]),
+    ).toEqual({ name: null, statuses: [] });
   });
 });

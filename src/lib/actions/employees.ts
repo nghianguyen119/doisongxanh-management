@@ -51,6 +51,42 @@ export async function generateInviteAction(formData: FormData) {
   revalidatePath(`/employees/${employeeId}`);
 }
 
+const updateSchema = z.object({
+  employeeId: z.string().uuid(),
+  name: z.string().trim().min(1, "Nhập tên nhân viên"),
+  phone: z.string().optional(),
+  position: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export async function updateEmployeeAction(formData: FormData) {
+  await requireUser();
+  const parsed = updateSchema.parse({
+    employeeId: formData.get("employeeId"),
+    name: formData.get("name"),
+    phone: formData.get("phone") || undefined,
+    position: formData.get("position") || undefined,
+    note: formData.get("note") || undefined,
+  });
+
+  const [row] = await db
+    .update(employee)
+    .set({
+      name: parsed.name,
+      phone: parsed.phone ? normalizePhone(parsed.phone) : null,
+      position: parsed.position?.trim() ? parsed.position.trim() : null,
+      note: parsed.note?.trim() ? parsed.note.trim() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(employee.id, parsed.employeeId))
+    .returning({ id: employee.id });
+
+  if (!row) throw new Error("Không tìm thấy nhân viên.");
+
+  revalidatePath("/employees");
+  revalidatePath(`/employees/${parsed.employeeId}`);
+}
+
 export async function linkManualAction(formData: FormData) {
   await requireUser();
   const employeeId = z.string().uuid().parse(formData.get("employeeId"));
