@@ -53,14 +53,17 @@ the bot sends back.
 
 ## Going live with a real Zalo OA
 
+Full credential/webhook/token runbook: **[docs/zalo-oa-setup.md](docs/zalo-oa-setup.md)**.
+
 1. Create an app + Official Account at <https://developers.zalo.me>. Add the
    **Official Account API** product.
 2. In the app's **Webhook** section: set the callback URL to
    `https://<your-domain>/api/zalo/webhook`, copy the **OA Secret Key**, and
    subscribe to at least: `user_send_text`, `user_send_image`, `follow`,
    `unfollow`, `user_submit_info`.
-3. Do the OAuth flow once to obtain the initial **access token** + **refresh
-   token** (access token lasts ~1h, refresh token ~3 months).
+3. Do the OAuth PKCE flow once to obtain the initial **access token** + **refresh
+   token** (access token ~25h, refresh token ~3 months; both rotate and the app
+   persists them in `zalo_oa_token`).
 4. Set in `.env`:
    ```
    ZALO_TRANSPORT=live
