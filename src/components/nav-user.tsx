@@ -68,7 +68,11 @@ export function NavUser({
                 {user.email}
               </span>
             </div>
-            <DotsThreeVerticalIcon className="ml-auto size-4" />
+            <DotsThreeVerticalIcon
+              weight="duotone"
+              color="#ec4899"
+              className="ml-auto size-4"
+            />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56"

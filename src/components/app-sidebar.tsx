@@ -27,17 +27,17 @@ const NAV_MAIN = [
   {
     title: "Tổng quan",
     url: "/dashboard",
-    icon: <SquaresFourIcon />,
+    icon: <SquaresFourIcon weight="duotone" color="#3b82f6" />,
   },
   {
     title: "Công việc",
     url: "/tasks",
-    icon: <ListChecksIcon />,
+    icon: <ListChecksIcon weight="duotone" color="#10b981" />,
   },
   {
     title: "Nhân viên",
     url: "/employees",
-    icon: <UsersIcon />,
+    icon: <UsersIcon weight="duotone" color="#8b5cf6" />,
   },
 ]
 
@@ -45,7 +45,7 @@ const NAV_SECONDARY = [
   {
     title: "Zalo OA",
     url: "/settings/zalo",
-    icon: <ChatCircleIcon />,
+    icon: <ChatCircleIcon weight="duotone" color="#0ea5e9" />,
   },
 ]
 
@@ -67,7 +67,11 @@ export function AppSidebar({
               className="data-[slot=sidebar-menu-button]:p-1.5!"
               render={<Link href="/dashboard" />}
             >
-              <LeafIcon className="size-5! text-primary" />
+              <LeafIcon
+                weight="duotone"
+                color="#22c55e"
+                className="size-5!"
+              />
               <span className="text-base font-semibold">Đời Sống Xanh</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
