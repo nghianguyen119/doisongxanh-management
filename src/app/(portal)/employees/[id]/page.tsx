@@ -5,7 +5,6 @@ import { getEmployeeDetail } from "@/lib/queries";
 import {
   generateInviteAction,
   linkManualAction,
-  setEmployeeStatusAction,
   unlinkZaloAction,
 } from "@/lib/actions/employees";
 import {
@@ -22,6 +21,7 @@ import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { EmployeeProfileForm } from "./employee-profile-form";
+import { EmployeeStatusForm } from "./employee-status-form";
 
 function tasksByAssigneeHref(employeeId: string) {
   const filters = encodeURIComponent(
@@ -56,9 +56,8 @@ export default async function EmployeeDetailPage({
       {openTasks > 0 && (
         <Card className="mb-6 gap-0 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
           Nhân viên còn <b>{openTasks}</b> việc đang mở.{" "}
-          {e.status !== "inactive"
-            ? "Nên giao lại trước khi ngừng hoạt động."
-            : "Các việc này sẽ không còn được nhắc qua Zalo."}{" "}
+          {e.status === "inactive" &&
+            "Các việc này sẽ không còn được nhắc qua Zalo. "}
           <Link
             href={tasksByAssigneeHref(e.id)}
             className="font-medium underline underline-offset-4"
@@ -168,24 +167,12 @@ export default async function EmployeeDetailPage({
 
           <div className="border-t pt-3">
             <p className="mb-2 text-sm font-medium">Trạng thái</p>
-            <ActionForm
-              action={setEmployeeStatusAction}
-              toastId="employee-status"
-              successMessage="Đã cập nhật trạng thái"
-              className="flex gap-2"
-            >
-              <input type="hidden" name="employeeId" value={e.id} />
-              <select
-                name="status"
-                defaultValue={e.status}
-                className={inputClass}
-              >
-                <option value="invited">Chờ kết nối</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Ngừng</option>
-              </select>
-              <SubmitButton variant="outline">Lưu</SubmitButton>
-            </ActionForm>
+            <EmployeeStatusForm
+              employeeId={e.id}
+              defaultStatus={e.status}
+              openTasks={openTasks}
+              tasksHref={tasksByAssigneeHref(e.id)}
+            />
           </div>
         </Card>
       </div>

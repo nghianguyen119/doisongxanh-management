@@ -6,12 +6,7 @@ import { useFormStatus } from "react-dom"
 
 import { Button } from "@/components/ui/button"
 import { useActionToast } from "@/hooks/use-action-toast"
-import type { ActionResultState } from "@/lib/action-state"
-
-type ActionFormAction = (
-  state: ActionResultState,
-  formData: FormData
-) => Promise<ActionResultState>
+import type { ActionStateFn } from "@/lib/action-state"
 
 /**
  * A `<form>` wired to a server action that returns {@link ActionResultState}.
@@ -22,18 +17,26 @@ export function ActionForm({
   toastId,
   successMessage,
   loadingMessage,
+  redirect = false,
   className,
   children,
 }: {
-  action: ActionFormAction
+  action: ActionStateFn
   toastId: string
   successMessage: string
   loadingMessage?: string
+  /** Navigate to `state.redirectTo` after the success/warning toast. */
+  redirect?: boolean
   className?: string
   children: React.ReactNode
 }) {
   const [state, formAction, pending] = useActionState(action, null)
-  useActionToast(state, pending, { id: toastId, successMessage, loadingMessage })
+  useActionToast(state, pending, {
+    id: toastId,
+    successMessage,
+    loadingMessage,
+    redirect,
+  })
 
   return (
     <form action={formAction} className={className}>

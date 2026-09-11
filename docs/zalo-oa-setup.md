@@ -24,6 +24,7 @@ Before switching `ZALO_TRANSPORT=live`, note these items:
 | 6 | Message window | **Limit** — CS messages only within **7 days** of the user's last interaction; free within 48h, paid after (see §6.4). Outside 7 days, delivery fails — needs ZNS template (not implemented). |
 | 7 | `ALLOWED_MANAGER_EMAILS` | **Must be non-empty in production** — an empty allowlist blocks every sign-in outside dev. |
 | 8 | Cron scheduler | Wire `CRON_SECRET` + an hourly trigger, or due-date reminders are disabled (503). |
+| 9 | OA Tier Package | **Check before go-live** — Zalo rejects button/template messages with `-224` ("The OA needs to upgrade OA Tier Package") on a free/lower OA tier. Upgrade the OA package, otherwise task cards never reach employees (the failure is shown in the task timeline). |
 
 Everything else (Google OAuth, Postgres hosting, Next.js deployment) is assumed
 handled — a short non-Zalo checklist is in §8.
@@ -345,6 +346,7 @@ OA quality/reporting in OA Manager also affects limits.
 | `user_submit_info` never arrives | Subscribe the event if you want shared contact details logged for the customer inbox. It is no longer used for linking. |
 | Assign works but the employee gets no Zalo card | The assignee has no `zaloUserId` (status *Chờ kết nối*), or the 7-day window/send failed — check the log. |
 | Duplicate “task done” events | Should not happen (dedupe on `msg_id`); if it does, check that `zalo_message_log.external_id` is unique and populated. |
+| `error=-224 … upgrade OA Tier Package` | The OA's Zalo package does not allow button/template messages. Upgrade the OA tier in OA Manager. The task timeline marks the message as *Gửi Zalo thất bại*. |
 
 ---
 

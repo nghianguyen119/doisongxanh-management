@@ -57,7 +57,10 @@ This is Next.js 16: its APIs differ from older versions (async
   reaches a Postgres enum/uuid column (see `parseTaskFilters` in
   `src/lib/queries.ts`) — otherwise a bad value is a 500, not a no-op.
 - **Env**: import from `src/env.ts`, never `process.env` directly. Add new vars
-  there (server vs client) and to `.env.example`.
+  there (server vs client) and to `.env.example`. The one exception is
+  `src/instrumentation-client.ts` (Sentry), which must use
+  `process.env.NEXT_PUBLIC_*` directly because `src/env.ts` carries
+  server-only vars and cannot enter the browser bundle.
 
 ## Adding things
 

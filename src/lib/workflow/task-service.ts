@@ -19,7 +19,12 @@ type Actor = { type: "manager" | "employee" | "system"; id: string | null };
  * Vietnamese rather than blow up a webhook.
  */
 export type TaskResult =
-  | { ok: true; task: TaskRow }
+  | {
+      ok: true;
+      task: TaskRow;
+      /** Delivery outcome of the Zalo notification, when one was attempted. */
+      zalo?: NotifyResult;
+    }
   | {
       ok: false;
       reason:
@@ -75,15 +80,22 @@ async function notifyEmployee(
   kind: NotificationKind,
   zaloUserId: string | null,
   send: (zid: string) => Promise<NotifyResult>,
-) {
+): Promise<NotifyResult> {
   const res = zaloUserId
     ? await send(zaloUserId)
     : { ok: false as const, error: "not_linked" };
-  await logEvent(taskId, "notification", { type: "system", id: null }, {
-    kind,
-    ok: res.ok,
-    error: res.ok ? null : res.error,
-  });
+  // The outcome is an audit trail, not part of the mutation: a failure to
+  // write it must never surface as a task failure.
+  try {
+    await logEvent(taskId, "notification", { type: "system", id: null }, {
+      kind,
+      ok: res.ok,
+      error: res.ok ? null : res.error,
+    });
+  } catch (err) {
+    console.error("[notification] failed to record delivery outcome", err);
+  }
+  return res;
 }
 
 /**
@@ -133,7 +145,7 @@ export async function createTask(input: {
   dueAt?: Date | null;
   assigneeId?: string | null;
   createdBy: string;
-}): Promise<TaskRow> {
+}): Promise<{ task: TaskRow; zalo?: NotifyResult }> {
   const [row] = await db
     .insert(task)
     .values({
@@ -153,9 +165,9 @@ export async function createTask(input: {
       assigneeId: input.assigneeId,
       actorId: input.createdBy,
     });
-    if (res.ok) return res.task;
+    if (res.ok) return { task: res.task, zalo: res.zalo };
   }
-  return row;
+  return { task: row };
 }
 
 export async function updateTask(input: {
@@ -199,12 +211,16 @@ export async function updateTask(input: {
   });
 
   // Tell the employee only when something they act on actually moved.
+  let zalo: NotifyResult | undefined;
   if (changed.some((k) => k !== "description")) {
-    await notifyEmployee(input.taskId, "updated", await assigneeZaloId(row), (z) =>
-      notify.notifyUpdated(toCard(row), z),
+    zalo = await notifyEmployee(
+      input.taskId,
+      "updated",
+      await assigneeZaloId(row),
+      (z) => notify.notifyUpdated(toCard(row), z),
     );
   }
-  return { ok: true, task: row };
+  return { ok: true, task: row, zalo };
 }
 
 export async function assignTask(input: {
@@ -233,13 +249,13 @@ export async function assignTask(input: {
     assigneeId: input.assigneeId,
   });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "assigned",
     await assigneeZaloId(res.task),
     (z) => notify.notifyAssigned(toCard(res.task), z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function unassignTask(input: {
@@ -276,13 +292,13 @@ export async function verifyTask(input: {
     id: input.actorId,
   }, { to: "verified" });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "verified",
     await assigneeZaloId(res.task),
     (z) => notify.notifyVerified(z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function cancelTask(input: {
@@ -298,13 +314,13 @@ export async function cancelTask(input: {
     id: input.actorId,
   }, { to: "cancelled", reason: input.reason ?? null });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "cancelled",
     await assigneeZaloId(res.task),
     (z) => notify.notifyCancelled(z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function addManagerComment(input: {
@@ -319,13 +335,13 @@ export async function addManagerComment(input: {
     text: input.text,
   });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "comment",
     await assigneeZaloId(t),
     (z) => notify.forwardManagerComment(z, input.text),
   );
-  return { ok: true, task: t };
+  return { ok: true, task: t, zalo };
 }
 
 /**
@@ -402,13 +418,13 @@ export async function acceptTask(input: {
     id: input.employeeId,
   }, { to: "accepted" });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "accepted",
     await assigneeZaloId(res.task),
     (z) => notify.notifyAccepted(toCard(res.task), z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function startTask(input: {
@@ -423,13 +439,13 @@ export async function startTask(input: {
     id: input.employeeId,
   }, { to: "in_progress" });
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "started",
     await assigneeZaloId(res.task),
     (z) => notify.notifyStarted(toCard(res.task), z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function completeTask(input: {
@@ -448,13 +464,13 @@ export async function completeTask(input: {
 
   await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "done",
     await assigneeZaloId(res.task),
     (z) => notify.notifyDoneAck(z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function reportIssue(input: {
@@ -473,13 +489,13 @@ export async function reportIssue(input: {
 
   await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
-  await notifyEmployee(
+  const zalo = await notifyEmployee(
     input.taskId,
     "issue",
     await assigneeZaloId(res.task),
     (z) => notify.notifyIssueAck(z),
   );
-  return res;
+  return { ...res, zalo };
 }
 
 export async function addEmployeeComment(input: {

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/db";
 import { zaloMessageLog } from "@/db/schema";
 import * as conversation from "@/lib/workflow/conversation";
@@ -68,6 +69,10 @@ export async function dispatchInbound(event: InboundEvent): Promise<void> {
     console.error(
       `[zalo:inbound] handler error kind=${event.kind} from=${event.zaloUserId}: ${preview(String(err))}`,
     );
+    // The webhook must still 200 (Zalo retries non-200), so report it here.
+    Sentry.captureException(err, {
+      tags: { source: "zalo:inbound", event: event.kind },
+    });
     await db.insert(zaloMessageLog).values({
       direction: "in",
       zaloUserId: event.zaloUserId,

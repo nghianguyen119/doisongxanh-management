@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -21,6 +23,12 @@ export default function PortalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // React error boundaries catch the error, so Sentry does not see it unless
+  // we report it here.
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   const raw = error.message || "";
   const message =
     !raw || MASKED_MESSAGE.test(raw)

@@ -12,6 +12,11 @@ acknowledgement (never an employee-linking hint) and the message appears under
 Only a 4-consonant invite code (e.g. `MKTP`) links a Zalo account to an
 employee; it may be written anywhere in the message.
 
+When an employee has several open tasks, free-form messages and photos trigger
+a numbered task picker (due soonest first, 10 per page, `ds` to page on). The
+chosen task becomes the sticky "current" task until it closes or they pick
+another, so notes keep landing on the right job.
+
 ## Stack
 
 | Concern        | Choice                                             |
@@ -101,6 +106,22 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/reminders
 
 It is idempotent, so running it more often than needed is harmless. Leaving
 `CRON_SECRET` unset disables the endpoint (503).
+
+## Error reporting (Sentry)
+
+Server, edge and browser errors go to Sentry when `NEXT_PUBLIC_SENTRY_DSN` is
+set; leave it empty and the SDK is a no-op (no network calls). Create a project
+at <https://sentry.io>, copy the DSN into `.env`, and optionally set
+`SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT` so `pnpm build` uploads
+source maps for readable stack traces.
+
+- `src/instrumentation.ts` → `onRequestError` forwards server request errors
+  (Server Components, route handlers, server actions).
+- `src/instrumentation-client.ts` → browser init (uncaught errors/rejections).
+- `(portal)/error.tsx` and `app/global-error.tsx` report errors caught by React
+  error boundaries.
+- `src/lib/zalo/dispatch.ts` reports webhook handler errors, which are swallowed
+  by design so Zalo always gets a 200.
 
 ## Timezone
 

@@ -36,6 +36,7 @@ import {
   verifyTaskAction,
 } from "@/lib/actions/tasks";
 import { PageHeader, inputClass } from "@/components/ui";
+import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -239,7 +240,12 @@ export default async function TaskDetailPage({
               Gửi lời nhắn cho nhân viên
             </h2>
             {t.assignee?.zaloUserId ? (
-              <form action={commentTaskAction} className="flex gap-2">
+              <ActionForm
+                action={commentTaskAction}
+                toastId="task-comment"
+                successMessage="Đã gửi lời nhắn cho nhân viên"
+                className="flex gap-2"
+              >
                 <input type="hidden" name="taskId" value={t.id} />
                 <input
                   name="text"
@@ -247,8 +253,8 @@ export default async function TaskDetailPage({
                   placeholder="Nội dung sẽ gửi qua Zalo…"
                   className={inputClass}
                 />
-                <Button type="submit">Gửi</Button>
-              </form>
+                <SubmitButton>Gửi</SubmitButton>
+              </ActionForm>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Nhân viên chưa kết nối Zalo nên chưa gửi được lời nhắn.
@@ -312,7 +318,12 @@ export default async function TaskDetailPage({
           </Card>
 
           <Card className="gap-3 p-5">
-            <form action={assignTaskAction} className="space-y-2">
+            <ActionForm
+              action={assignTaskAction}
+              toastId="task-assign"
+              successMessage="Đã giao việc"
+              className="space-y-2"
+            >
               <input type="hidden" name="taskId" value={t.id} />
               <Field>
                 <FieldLabel htmlFor="assigneeId">
@@ -333,37 +344,54 @@ export default async function TaskDetailPage({
                   ))}
                 </select>
               </Field>
-              <Button type="submit" variant="outline" className="w-full">
+              <SubmitButton variant="outline" className="w-full">
                 Giao / Gửi lại Zalo
-              </Button>
-            </form>
+              </SubmitButton>
+            </ActionForm>
 
-            {t.assigneeId && !closed && (
-              <form action={unassignTaskAction}>
-                <input type="hidden" name="taskId" value={t.id} />
-                <Button type="submit" variant="ghost" className="w-full">
+            {/*
+              These forms stay mounted while only their button is toggled.
+              Unmounting the form in the same re-render that a successful
+              action triggers would drop its toast (effects never run).
+            */}
+            <ActionForm
+              action={unassignTaskAction}
+              toastId="task-unassign"
+              successMessage="Đã bỏ giao"
+            >
+              <input type="hidden" name="taskId" value={t.id} />
+              {t.assigneeId && !closed && (
+                <SubmitButton variant="ghost" className="w-full">
                   Bỏ giao (về Mới tạo)
-                </Button>
-              </form>
-            )}
+                </SubmitButton>
+              )}
+            </ActionForm>
 
-            {t.status === "done" && (
-              <form action={verifyTaskAction}>
-                <input type="hidden" name="taskId" value={t.id} />
-                <Button type="submit" className="w-full">
+            <ActionForm
+              action={verifyTaskAction}
+              toastId="task-verify"
+              successMessage="Đã xác nhận hoàn thành"
+            >
+              <input type="hidden" name="taskId" value={t.id} />
+              {t.status === "done" && (
+                <SubmitButton className="w-full">
                   Xác nhận hoàn thành
-                </Button>
-              </form>
-            )}
+                </SubmitButton>
+              )}
+            </ActionForm>
 
-            {!closed && (
-              <form action={cancelTaskAction}>
-                <input type="hidden" name="taskId" value={t.id} />
-                <Button type="submit" variant="destructive" className="w-full">
+            <ActionForm
+              action={cancelTaskAction}
+              toastId="task-cancel"
+              successMessage="Đã huỷ công việc"
+            >
+              <input type="hidden" name="taskId" value={t.id} />
+              {!closed && (
+                <SubmitButton variant="destructive" className="w-full">
                   Huỷ công việc
-                </Button>
-              </form>
-            )}
+                </SubmitButton>
+              )}
+            </ActionForm>
           </Card>
 
           {!closed && (
@@ -381,7 +409,12 @@ export default async function TaskDetailPage({
                   <PencilSimpleIcon />
                 </CollapsibleTrigger>
               <CollapsibleContent>
-                <form action={updateTaskAction} className="mt-3 space-y-3">
+                <ActionForm
+                  action={updateTaskAction}
+                  toastId="task-update"
+                  successMessage="Đã lưu thay đổi"
+                  className="mt-3 space-y-3"
+                >
                   <input type="hidden" name="taskId" value={t.id} />
                   <Field>
                     <FieldLabel htmlFor="edit-title">Tiêu đề</FieldLabel>
@@ -427,10 +460,10 @@ export default async function TaskDetailPage({
                     />
                     <FieldDescription>Giờ Việt Nam.</FieldDescription>
                   </Field>
-                  <Button type="submit" variant="outline" className="w-full">
+                  <SubmitButton variant="outline" className="w-full">
                     Lưu thay đổi
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </CollapsibleContent>
             </Collapsible>
           </Card>

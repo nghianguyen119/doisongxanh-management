@@ -33,9 +33,19 @@ export const env = createEnv({
      * enabled in production, even if the flag slips through.
      */
     AUTH_BYPASS: z.string().optional().default("false"),
+
+    /**
+     * Build-time only: uploads source maps during `pnpm build`. Leave unset
+     * and Sentry still reports errors, just with minified stack traces.
+     */
+    SENTRY_AUTH_TOKEN: z.string().optional().default(""),
+    SENTRY_ORG: z.string().optional().default(""),
+    SENTRY_PROJECT: z.string().optional().default(""),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
+    /** Empty disables Sentry everywhere; the DSN is not a secret. */
+    NEXT_PUBLIC_SENTRY_DSN: z.string().optional().default(""),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
@@ -52,7 +62,11 @@ export const env = createEnv({
     ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
     CRON_SECRET: process.env.CRON_SECRET,
     AUTH_BYPASS: process.env.AUTH_BYPASS,
+    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+    SENTRY_ORG: process.env.SENTRY_ORG,
+    SENTRY_PROJECT: process.env.SENTRY_PROJECT,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   emptyStringAsUndefined: false,
   skipValidation:

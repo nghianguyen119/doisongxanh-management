@@ -65,14 +65,14 @@ export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
 };
 
 export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
-  assigned: "Giao việc",
+  assigned: "Thẻ giao việc",
   updated: "Cập nhật công việc",
   accepted: "Xác nhận nhận việc",
   started: "Xác nhận bắt đầu",
   done: "Báo hoàn thành",
-  issue: "Báo sự cố",
+  issue: "Xác nhận sự cố",
   verified: "Duyệt hoàn thành",
-  cancelled: "Huỷ công việc",
+  cancelled: "Thông báo huỷ",
   comment: "Lời nhắn cho nhân viên",
   reminder: "Nhắc hạn",
 };

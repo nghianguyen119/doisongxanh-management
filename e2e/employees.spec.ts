@@ -86,9 +86,22 @@ test.describe("employees", () => {
     });
     await createTaskViaUi(page, { title: `E2E warn ${Date.now()}`, assigneeId: id });
     await page.goto(`/employees/${id}`);
+
+    // Opening the profile only reports the open work, it does not imply a
+    // deactivation is coming.
     await expect(page.getByText(/còn\s*1\s*việc đang mở/i)).toBeVisible();
+    await expect(
+      page.getByText(/Nên giao lại trước khi ngừng hoạt động/)
+    ).toHaveCount(0);
+
+    // The reassignment warning appears once "Ngừng" is actually selected.
+    await page.locator('select[name="status"]').selectOption("inactive");
+    await expect(
+      page.getByText(/Nên giao lại trước khi ngừng hoạt động/)
+    ).toBeVisible();
     const href = await page
       .getByRole("link", { name: "Xem danh sách" })
+      .last()
       .getAttribute("href");
     expect(href).toContain("/tasks?filters=");
   });

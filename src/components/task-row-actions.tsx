@@ -10,7 +10,10 @@ import {
   ProhibitIcon,
 } from "@phosphor-icons/react"
 
+import { toast } from "sonner"
+
 import { cancelTaskAction, verifyTaskAction } from "@/lib/actions/tasks"
+import type { ActionStateFn } from "@/lib/action-state"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -32,15 +35,23 @@ export function TaskRowActions({
   const [pending, startTransition] = React.useTransition()
 
   function run(
-    action: (formData: FormData) => Promise<void>,
-    fields: Record<string, string>
+    action: ActionStateFn,
+    fields: Record<string, string>,
+    successMessage: string
   ) {
     startTransition(async () => {
       const formData = new FormData()
       for (const [key, value] of Object.entries(fields)) {
         formData.set(key, value)
       }
-      await action(formData)
+      const state = await action(null, formData)
+      if (state?.error) {
+        toast.error(state.error)
+      } else if (state?.warning) {
+        toast.warning(state.warning)
+      } else if (state?.success) {
+        toast.success(successMessage)
+      }
       router.refresh()
     })
   }
@@ -66,7 +77,9 @@ export function TaskRowActions({
         </DropdownMenuItem>
         {status === "done" && (
           <DropdownMenuItem
-            onClick={() => run(verifyTaskAction, { taskId })}
+            onClick={() =>
+              run(verifyTaskAction, { taskId }, "Đã xác nhận hoàn thành")
+            }
           >
             <CheckCircleIcon />
             Xác nhận hoàn thành
@@ -76,7 +89,9 @@ export function TaskRowActions({
           <DropdownMenuItem
             variant="destructive"
             disabled={pending}
-            onClick={() => run(cancelTaskAction, { taskId })}
+            onClick={() =>
+              run(cancelTaskAction, { taskId }, "Đã huỷ công việc")
+            }
           >
             <ProhibitIcon />
             Huỷ công việc

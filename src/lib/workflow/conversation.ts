@@ -5,9 +5,10 @@ import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import { getZaloClient } from "@/lib/zalo/factory";
 import { preview } from "@/lib/zalo/log";
 import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
-import { copy } from "./bot-copy";
+import { copy, taskPickText } from "./bot-copy";
 import * as clients from "./client-conversation";
 import * as linking from "./employee-linking";
+import { parseTaskPick, pickPage, sortOpenTasks } from "./task-pick";
 import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
 import * as notify from "./notification-service";
@@ -24,6 +25,38 @@ const STATE_TTL_MS = 30 * 60 * 1000;
 
 type EmployeeRow = typeof employee.$inferSelect;
 type ConvRow = typeof zaloConversation.$inferSelect;
+type TaskRow = typeof task.$inferSelect;
+
+/** Conversation context: in-flight flow task + the sticky "current task". */
+type ConvContext = {
+  taskId?: string;
+  note?: string;
+  /** Where the next free-form message goes; null once the task is gone. */
+  activeTaskId?: string | null;
+  /** The numbered list the employee is choosing from. */
+  pick?: {
+    options: string[];
+    page: number;
+    text?: string;
+    urls?: string[];
+  };
+};
+
+const LIST_COMMANDS = [
+  "ds",
+  "danh sách",
+  "danh sach",
+  "ds việc",
+  "ds viec",
+  "đổi việc",
+  "doi viec",
+  "chọn việc",
+  "chon viec",
+];
+
+function isListCommand(text: string) {
+  return LIST_COMMANDS.includes(text.trim().toLowerCase());
+}
 
 async function say(zaloUserId: string, text: string) {
   await getZaloClient().sendText(zaloUserId, text);
@@ -89,6 +122,102 @@ async function openTasksFor(employeeId: string) {
   });
 }
 
+/** Tasks in the order the picker lists them: most urgent first. */
+async function sortedOpenTasks(employeeId: string) {
+  return sortOpenTasks(await openTasksFor(employeeId));
+}
+
+/** A task that is still open and still assigned to this employee. */
+async function findOpenAssigned(
+  employeeId: string,
+  taskId: string,
+): Promise<TaskRow | null> {
+  const t = await tasks.getTask(taskId);
+  if (!t || t.assigneeId !== employeeId) return null;
+  return OPEN_TASK_STATUSES.includes(t.status) ? t : null;
+}
+
+/** Patches the conversation context without touching its state. */
+async function mergeContext(
+  zaloUserId: string,
+  patch: Record<string, unknown>,
+) {
+  const conv = await db.query.zaloConversation.findFirst({
+    where: eq(zaloConversation.zaloUserId, zaloUserId),
+  });
+  const context = { ...((conv?.context ?? {}) as ConvContext), ...patch };
+  await db
+    .insert(zaloConversation)
+    .values({ zaloUserId, context })
+    .onConflictDoUpdate({
+      target: zaloConversation.zaloUserId,
+      set: { context, updatedAt: new Date() },
+    });
+}
+
+/** Records a free-form text/photo against a task, naming it in the ack. */
+async function applyFreeMessage(
+  zaloUserId: string,
+  emp: EmployeeRow,
+  target: TaskRow,
+  content: { text?: string; urls?: string[] },
+) {
+  const text = content.text ?? "[hình ảnh]";
+  console.log(
+    `[zalo:task] free update task=${target.id} from=${emp.id} ` +
+      `text="${preview(text)}" files=${content.urls?.length ?? 0}`,
+  );
+  await tasks.addEmployeeComment({
+    taskId: target.id,
+    employeeId: emp.id,
+    text,
+    attachmentUrls: content.urls,
+  });
+  await mergeContext(zaloUserId, { activeTaskId: target.id });
+  return say(zaloUserId, copy.commentAck(target.title));
+}
+
+/** Sends the numbered list and parks the message until a number arrives. */
+async function askTaskPick(
+  zaloUserId: string,
+  employeeId: string,
+  open: TaskRow[],
+  page: number,
+  pending: { text?: string; urls?: string[] },
+) {
+  const { slice, page: safePage, total, hasMore } = pickPage(open, page);
+  await setState(zaloUserId, "awaiting_task_pick", {
+    pick: {
+      options: slice.map((t) => t.id),
+      page: safePage,
+      ...pending,
+    },
+  });
+  await say(
+    zaloUserId,
+    taskPickText(
+      slice.map((t, i) => ({ index: i + 1, title: t.title, dueAt: t.dueAt })),
+      { total, hasMore },
+    ),
+  );
+}
+
+/** "ds" / "đổi việc": show the list, or route to the only task there is. */
+async function listOpenTasks(
+  zaloUserId: string,
+  employeeId: string,
+  page: number,
+  pending: { text?: string; urls?: string[] },
+) {
+  const open = await sortedOpenTasks(employeeId);
+  if (open.length === 0) return say(zaloUserId, copy.noActiveTask);
+  if (open.length === 1) {
+    await mergeContext(zaloUserId, { activeTaskId: open[0].id });
+    return say(zaloUserId, copy.onlyOneTask(open[0].title));
+  }
+  return askTaskPick(zaloUserId, employeeId, open, page, pending);
+}
+
 /**
  * Turns a rejected mutation into something the employee can understand. The
  * service already sent the happy-path acknowledgement.
@@ -118,9 +247,12 @@ export async function handleInboundText(zaloUserId: string, text: string) {
   if (button) return handleTaskAction(zaloUserId, button.action, button.taskId);
 
   const conv = await getConversation(zaloUserId);
-  const ctx = conv.context as { taskId?: string; note?: string };
+  const ctx = conv.context as ConvContext;
 
   switch (conv.state) {
+    case "awaiting_task_pick":
+      return handlePickReply(zaloUserId, emp, text, ctx);
+
     case "awaiting_issue_text": {
       if (!ctx.taskId) break;
       console.log(
@@ -180,7 +312,7 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
   if (!emp) return clients.handleClientImage(zaloUserId, urls);
 
   const conv = await getConversation(zaloUserId);
-  const ctx = conv.context as { taskId?: string; note?: string };
+  const ctx = conv.context as ConvContext;
 
   if (conv.state === "awaiting_done_photo" && ctx.taskId) {
     console.log(
@@ -211,23 +343,27 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
     return reportFailure(zaloUserId, res);
   }
 
-  const open = await openTasksFor(emp.id);
-  if (open.length === 1) {
-    console.log(
-      `[zalo:task] image comment task=${open[0].id} from=${emp.id} files=${urls.length}`,
-    );
-    await tasks.addEmployeeComment({
-      taskId: open[0].id,
-      employeeId: emp.id,
-      text: "[hình ảnh]",
-      attachmentUrls: urls,
+  if (conv.state === "awaiting_task_pick" && ctx.pick) {
+    // More photos while choosing: keep them with the pending content so the
+    // pick applies everything at once.
+    await mergeContext(zaloUserId, {
+      pick: { ...ctx.pick, urls: [...(ctx.pick.urls ?? []), ...urls] },
     });
-    return say(zaloUserId, copy.employeeCommentAck);
+    return say(zaloUserId, copy.taskPickImageHeld);
   }
-  console.log(
-    `[zalo:task] image from=${emp.id} not linked to a task (open=${open.length})`,
-  );
-  await say(zaloUserId, open.length === 0 ? copy.noActiveTask : copy.help);
+
+  if (ctx.activeTaskId) {
+    const active = await findOpenAssigned(emp.id, ctx.activeTaskId);
+    if (active) return applyFreeMessage(zaloUserId, emp, active, { urls });
+    await mergeContext(zaloUserId, { activeTaskId: null });
+  }
+
+  const open = await sortedOpenTasks(emp.id);
+  if (open.length === 0) return say(zaloUserId, copy.noActiveTask);
+  if (open.length === 1) {
+    return applyFreeMessage(zaloUserId, emp, open[0], { urls });
+  }
+  return askTaskPick(zaloUserId, emp.id, open, 0, { urls });
 }
 
 export async function handleFollow(zaloUserId: string) {
@@ -327,23 +463,32 @@ async function handleTaskAction(
   );
 
   switch (action) {
-    case "accept":
-      return reportFailure(
-        zaloUserId,
-        await tasks.acceptTask({ taskId, employeeId: emp.id }),
-      );
-    case "start":
-      return reportFailure(
-        zaloUserId,
-        await tasks.startTask({ taskId, employeeId: emp.id }),
-      );
+    case "accept": {
+      const res = await tasks.acceptTask({ taskId, employeeId: emp.id });
+      if (res.ok) await mergeContext(zaloUserId, { activeTaskId: taskId });
+      return reportFailure(zaloUserId, res);
+    }
+    case "start": {
+      const res = await tasks.startTask({ taskId, employeeId: emp.id });
+      if (res.ok) await mergeContext(zaloUserId, { activeTaskId: taskId });
+      return reportFailure(zaloUserId, res);
+    }
     case "done":
-      await setState(zaloUserId, "awaiting_done_photo", { taskId });
+      // Tapping a card is a strong signal of which task they mean, so it
+      // becomes the sticky target too.
+      await setState(zaloUserId, "awaiting_done_photo", {
+        taskId,
+        activeTaskId: taskId,
+      });
       return say(zaloUserId, copy.askDonePhoto);
     case "issue":
-      await setState(zaloUserId, "awaiting_issue_text", { taskId });
+      await setState(zaloUserId, "awaiting_issue_text", {
+        taskId,
+        activeTaskId: taskId,
+      });
       return say(zaloUserId, copy.askIssueText);
     case "detail":
+      await mergeContext(zaloUserId, { activeTaskId: taskId });
       await notify.sendTaskDetail(tasks.taskToCard(t), zaloUserId);
       return;
     default:
@@ -378,25 +523,101 @@ async function handleUnlinkedText(zaloUserId: string, text: string) {
   );
 }
 
+/**
+ * Free text with no flow in progress: route it to the sticky task, to the
+ * only open task, or ask which task when several are open.
+ */
 async function handleIdleText(
   zaloUserId: string,
   emp: EmployeeRow,
   text: string,
 ) {
-  const open = await openTasksFor(emp.id);
-  if (open.length === 1) {
-    console.log(
-      `[zalo:task] text comment task=${open[0].id} from=${emp.id} text="${preview(text)}"`,
-    );
-    await tasks.addEmployeeComment({
-      taskId: open[0].id,
-      employeeId: emp.id,
-      text,
-    });
-    return say(zaloUserId, copy.employeeCommentAck);
+  if (isListCommand(text)) {
+    return listOpenTasks(zaloUserId, emp.id, 0, {});
   }
-  console.log(
-    `[zalo:task] text from=${emp.id} not linked to a task (open=${open.length})`,
-  );
-  return say(zaloUserId, open.length === 0 ? copy.noActiveTask : copy.help);
+
+  const conv = await getConversation(zaloUserId);
+  const ctx = conv.context as ConvContext;
+
+  if (ctx.activeTaskId) {
+    const active = await findOpenAssigned(emp.id, ctx.activeTaskId);
+    if (active) return applyFreeMessage(zaloUserId, emp, active, { text });
+    await mergeContext(zaloUserId, { activeTaskId: null });
+  }
+
+  const open = await sortedOpenTasks(emp.id);
+  if (open.length === 0) {
+    console.log(`[zalo:task] text from=${emp.id} with no open task`);
+    return say(zaloUserId, copy.noActiveTask);
+  }
+  if (open.length === 1) {
+    return applyFreeMessage(zaloUserId, emp, open[0], { text });
+  }
+  return askTaskPick(zaloUserId, emp.id, open, 0, { text });
+}
+
+/**
+ * Answer to the numbered list: a number applies the parked content (or just
+ * switches the sticky task), `ds` pages on, anything else is kept as content.
+ */
+async function handlePickReply(
+  zaloUserId: string,
+  emp: EmployeeRow,
+  text: string,
+  ctx: ConvContext,
+) {
+  const pick = ctx.pick;
+  if (!pick) {
+    await setState(zaloUserId, "idle");
+    return handleIdleText(zaloUserId, emp, text);
+  }
+
+  if (isListCommand(text)) {
+    return listOpenTasks(zaloUserId, emp.id, pick.page + 1, {
+      text: pick.text,
+      urls: pick.urls,
+    });
+  }
+
+  const choice = parseTaskPick(text, pick.options.length);
+  if (!choice) {
+    console.log(
+      `[zalo:task] pick from=${emp.id} not a number: "${preview(text)}"`,
+    );
+    const parked = [pick.text, text].filter(Boolean).join("\n");
+    await mergeContext(zaloUserId, { pick: { ...pick, text: parked } });
+    return say(zaloUserId, copy.taskPickInvalid);
+  }
+
+  const target = await findOpenAssigned(emp.id, pick.options[choice - 1]);
+  if (!target) {
+    // The list is stale (task verified/reassigned while waiting): rebuild it.
+    console.log(
+      `[zalo:task] pick from=${emp.id} option ${choice} no longer open`,
+    );
+    const open = await sortedOpenTasks(emp.id);
+    if (open.length === 0) {
+      await setState(zaloUserId, "idle");
+      return say(zaloUserId, copy.noActiveTask);
+    }
+    if (open.length === 1) {
+      return applyFreeMessage(zaloUserId, emp, open[0], {
+        text: pick.text,
+        urls: pick.urls,
+      });
+    }
+    return askTaskPick(zaloUserId, emp.id, open, 0, {
+      text: pick.text,
+      urls: pick.urls,
+    });
+  }
+
+  await setState(zaloUserId, "idle", { activeTaskId: target.id });
+  if (pick.text || pick.urls?.length) {
+    return applyFreeMessage(zaloUserId, emp, target, {
+      text: pick.text,
+      urls: pick.urls,
+    });
+  }
+  return say(zaloUserId, copy.taskPicked(target.title));
 }

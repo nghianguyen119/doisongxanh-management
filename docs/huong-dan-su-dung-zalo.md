@@ -132,7 +132,18 @@ mô tả sau). Công việc chuyển sang *Gặp sự cố* để quản lý x�
 
 **Nhắn tin/ảnh tự do:** nếu nhân viên chỉ có **một** công việc đang mở, mọi tin
 nhắn/ảnh gửi cho OA được gắn vào công việc đó (quản lý xem ở mục *Diễn tiến*).
-Nếu có nhiều việc, bot sẽ nhắc dùng nút trên thẻ công việc.
+
+**Khi có nhiều việc đang mở:**
+1. Nhân viên nhắn/gửi ảnh → bot trả về danh sách việc kèm số thứ tự (ưu tiên
+   việc gần hạn nhất, tối đa 10 việc mỗi lần).
+2. Nhân viên trả lời **số** (ví dụ `2`) để chọn việc; nội dung/ảnh được gắn vào
+   đúng việc đó.
+3. Việc vừa chọn trở thành việc **đang trao đổi**: các tin nhắn/ảnh tiếp theo
+   tự động gắn vào việc đó, không cần chọn lại, cho tới khi việc kết thúc.
+4. Gõ `ds` để xem lại danh sách, `đổi việc` để chọn việc khác. Bấm nút trên thẻ
+   công việc cũng đổi việc đang trao đổi.
+
+Nếu chọn một việc đã kết thúc, bot tự làm mới danh sách để nhân viên chọn lại.
 
 ---
 
@@ -192,6 +203,10 @@ công việc tối đa **1 lần/12 giờ**. Điều kiện để nhắc đượ
    được tin nhắn chữ.
 6. **Tin ngoài cửa sổ 7 ngày** cần mẫu ZNS (tin doanh nghiệp) — hệ thống hiện
    **chưa hỗ trợ**, cần liên hệ kỹ thuật nếu muốn bổ sung.
+7. **Gói OA phải hỗ trợ tin có nút** — thẻ giao việc có nút (Nhận việc/Bắt
+   đầu…) có thể bị Zalo từ chối với lỗi `-224` nếu gói OA chưa đủ hạng. Khi đó
+   nhân viên **không nhận được việc**; mục *Diễn tiến* ghi rõ "Gửi Zalo thất
+   bại". Cần nâng cấp gói OA bên Zalo.
 
 ---
 
@@ -201,9 +216,11 @@ công việc tối đa **1 lần/12 giờ**. Điều kiện để nhắc đượ
 | ---------- | ---------- |
 | Nhân viên nhắn mã mời nhưng báo "không đúng hoặc hết hạn" | Mã quá 7 ngày hoặc đã bị thay. Bấm **Tạo mã mời** và gửi mã mới. |
 | Nhân viên không nhận được thẻ giao việc | Kiểm tra: đã kết nối chưa, trạng thái có phải *Ngừng* không, lần tương tác cuối có quá 7 ngày không. Sửa xong bấm **Giao / Gửi lại Zalo** để gửi lại. |
+| *Diễn tiến* báo "Gửi Zalo thất bại" | Lý do ghi ngay trong dòng đó: nhân viên chưa kết nối Zalo, quá cửa sổ 7 ngày, hoặc gói OA chưa hỗ trợ tin có nút (`-224` — cần nâng cấp gói OA). |
 | Nhân viên bấm nút cũ và báo "công việc đã kết thúc" | Thẻ đó thuộc công việc đã *Đã xác nhận* hoặc *Đã huỷ*. Đây là hành vi đúng để tránh cập nhật nhầm. |
 | Muốn đổi tài khoản Zalo cho nhân viên | Mở nhân viên → **Hủy kết nối** → kết nối lại bằng mã mời hoặc Zalo ID mới. |
 | Khách hàng nhắn tin cho OA | Bot tự động cảm ơn và ghi lại. Xem ở **Zalo OA → Tin nhắn khách hàng** rồi trả lời thủ công trong ứng dụng Zalo OA. Tài khoản này **không** trở thành nhân viên nếu chưa có mã mời. |
+| Nhân viên có nhiều việc, nhắn tin/ảnh mà không bấm nút | Bot gửi danh sách việc kèm số; nhân viên trả lời **số** tương ứng. Sau đó các tin tiếp theo tự gắn vào việc đã chọn; gõ `ds` hoặc `đổi việc` để đổi. |
 | Nhân viên báo hoàn thành nhưng chưa thấy ảnh | Bot đang chờ ảnh; nhân viên gửi ảnh, hoặc gõ `bỏ qua` để hoàn tất không ảnh. |
 | Nhân viên phản hồi mà không thấy gắn vào việc nào | Nhân viên có nhiều việc đang mở; yêu cầu họ bấm nút trên đúng thẻ công việc. |
 | Nghi ngờ nhân viên đã nghỉ việc | Đặt trạng thái **Ngừng** để dừng nhận tin; hệ thống cảnh báo nếu còn việc đang mở — nhớ giao lại cho người khác trước. |

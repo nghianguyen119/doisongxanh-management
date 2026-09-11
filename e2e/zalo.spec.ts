@@ -168,6 +168,9 @@ test.describe("task lifecycle over Zalo", () => {
     await expect(page.getByText("Đã gửi Zalo").first()).toBeVisible();
     await page.getByRole("button", { name: "Xác nhận hoàn thành" }).click();
     await expect(
+      page.getByText("Đã xác nhận hoàn thành").first()
+    ).toBeVisible();
+    await expect(
       page.locator("main main").getByText("Đã xác nhận", { exact: true }).first()
     ).toBeVisible();
 
@@ -195,8 +198,63 @@ test.describe("task lifecycle over Zalo", () => {
       assigneeId: employeeId,
     });
 
+    // The create form warns immediately, and the timeline keeps the reason.
+    await expect(page.getByText(/chưa gửi được Zalo/).first()).toBeVisible();
     await expect(page.getByText("Thông báo Zalo").first()).toBeVisible();
     await expect(page.getByText(/Gửi Zalo thất bại/).first()).toBeVisible();
-    await expect(page.getByText(/chưa kết nối Zalo/).first()).toBeVisible();
+    await expect(page.getByText(/nhân viên chưa kết nối Zalo/).first()).toBeVisible();
+  });
+
+  test("routes free messages when several tasks are open", async ({ page }) => {
+    const employeeId = await createEmployeeViaUi(page, {
+      name: e2eName("multi"),
+      phone: e2ePhone(),
+    });
+    const zaloUserId = `e2e-zalo-${uniq()}`;
+
+    await page.getByPlaceholder("Zalo user id").fill(zaloUserId);
+    await page.getByRole("button", { name: "Gắn" }).click();
+    await expect(page.getByText("Đã kết nối").first()).toBeVisible();
+
+    const titleA = e2eTitle("multi-a");
+    const titleB = e2eTitle("multi-b");
+    const taskA = await createTaskViaUi(page, {
+      title: titleA,
+      assigneeId: employeeId,
+    });
+    const taskB = await createTaskViaUi(page, {
+      title: titleB,
+      assigneeId: employeeId,
+    });
+
+    await simulatorOpen(page, zaloUserId);
+    await simulatorSendText(page, "đã tưới xong");
+    await expect(page.getByText(/Trả lời SỐ/).first()).toBeVisible();
+    await expect(page.getByText(titleA, { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(titleB, { exact: false }).first()).toBeVisible();
+
+    // Task B was assigned second, so it is option 2.
+    await simulatorSendText(page, "2");
+    await expect(
+      page.getByText(new RegExp(`Đã ghi nhận vào việc.*${titleB}`)).first()
+    ).toBeVisible();
+
+    // The pick sticks: the next note goes to B without a new list.
+    await simulatorSendText(page, "thêm một ghi chú");
+    await expect(
+      page.getByText(new RegExp(`Đã ghi nhận vào việc.*${titleB}`)).nth(1)
+    ).toBeVisible();
+
+    // A photo follows the same active task.
+    await page.getByRole("button", { name: /Gửi ảnh/ }).click();
+    await expect(page.getByText(/Đã ghi nhận vào việc/).last()).toBeVisible();
+
+    await page.goto(`/tasks/${taskB}`);
+    await expect(page.getByText("đã tưới xong")).toBeVisible();
+    await expect(page.getByText("thêm một ghi chú")).toBeVisible();
+    await expect(page.locator('img[alt="đính kèm"]')).toHaveCount(1);
+
+    await page.goto(`/tasks/${taskA}`);
+    await expect(page.getByText("đã tưới xong")).toHaveCount(0);
   });
 });

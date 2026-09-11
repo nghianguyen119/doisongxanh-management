@@ -75,18 +75,22 @@ async function handle(req: NextRequest) {
 
     // Record the outcome either way: a failed reminder keeps the task in the
     // candidate set, so the manager must be able to see it is not reaching
-    // the employee.
-    await db.insert(taskEvent).values({
-      taskId: row.task.id,
-      type: "notification",
-      actorType: "system",
-      payload: {
-        kind: "reminder",
-        ok: res.ok,
-        error: res.ok ? null : res.error,
-        overdue,
-      },
-    });
+    // the employee. A logging failure must not abort the remaining reminders.
+    try {
+      await db.insert(taskEvent).values({
+        taskId: row.task.id,
+        type: "notification",
+        actorType: "system",
+        payload: {
+          kind: "reminder",
+          ok: res.ok,
+          error: res.ok ? null : res.error,
+          overdue,
+        },
+      });
+    } catch (err) {
+      console.error("[reminders] failed to record delivery outcome", err);
+    }
     if (!res.ok) continue;
 
     await db

@@ -39,6 +39,34 @@ export function taskCardText(t: TaskCardInput, heading: string): string {
     .join("\n");
 }
 
+export interface TaskListEntry {
+  /** 1-based position inside the current page. */
+  index: number;
+  title: string;
+  dueAt?: Date | null;
+}
+
+function shortTitle(title: string, max = 60) {
+  return title.length > max ? `${title.slice(0, max - 1)}…` : title;
+}
+
+/** Numbered "which task?" message for an employee with several open tasks. */
+export function taskPickText(
+  entries: TaskListEntry[],
+  { total, hasMore }: { total: number; hasMore: boolean },
+): string {
+  return [
+    `📋 Bạn đang có ${total} việc đang mở. Trả lời SỐ để chọn việc:`,
+    ...entries.map(
+      (e) =>
+        `${e.index}. ${shortTitle(e.title)}${e.dueAt ? ` (hạn ${fmtDue(e.dueAt)})` : ""}`,
+    ),
+    hasMore ? "…và còn việc khác, gõ “ds” để xem tiếp." : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export const BTN = {
   accept: (id: string): ZaloButton => ({
     title: "✅ Nhận việc",
@@ -111,12 +139,23 @@ export const copy = {
   taskNotYours: "Công việc này hiện không thuộc về bạn.",
 
   managerComment: (text: string) => `💬 Quản lý: ${text}`,
-  employeeCommentAck: "Đã chuyển lời nhắn của bạn tới quản lý. 📨",
+  commentAck: (title: string) => `Đã ghi nhận vào việc “${title}”. 📨`,
+
+  // Choosing between several open tasks
+  taskPickInvalid:
+    "Mình chưa hiểu. Vui lòng trả lời bằng SỐ trong danh sách (ví dụ: 2).",
+  taskPickImageHeld:
+    "Đã nhận ảnh. Vui lòng trả lời SỐ trong danh sách để chọn việc cho ảnh này.",
+  taskPicked: (title: string) =>
+    `Đã chọn việc “${title}”. Bạn nhắn tiếp ở đây nhé.`,
+  onlyOneTask: (title: string) =>
+    `Bạn chỉ có 1 việc đang mở: “${title}”. Cứ nhắn ở đây để cập nhật.`,
 
   // Fallbacks
   noActiveTask:
     "Hiện bạn không có công việc nào đang mở. Khi có việc mới bạn sẽ nhận thông báo tại đây.",
   help:
-    "Bạn có thể: gửi ảnh/nhắn tin để cập nhật công việc, hoặc chờ quản lý giao việc mới.",
+    "Bạn có thể: nhắn tin/gửi ảnh để cập nhật việc, gõ “ds” để xem danh sách " +
+    "việc đang mở, hoặc bấm nút trên thẻ công việc.",
   genericAck: "Đã nhận. ✅",
 };

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listActiveEmployeesForSelect } from "@/lib/queries";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PageHeader, inputClass } from "@/components/ui";
+import { ActionForm, SubmitButton } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DateTimePicker } from "@/components/date-time-picker";
@@ -18,7 +19,13 @@ export default async function NewTaskPage() {
         description="Giao ngay cho nhân viên để gửi thông báo qua Zalo."
       />
       <Card className="gap-0 p-5">
-        <form action={createTaskAction} className="space-y-4">
+        <ActionForm
+          action={createTaskAction}
+          toastId="task-create"
+          successMessage="Đã tạo công việc"
+          redirect
+          className="space-y-4"
+        >
           <Field>
             <FieldLabel htmlFor="title">Tiêu đề</FieldLabel>
             <input id="title" name="title" required className={inputClass} />
@@ -77,7 +84,7 @@ export default async function NewTaskPage() {
             </FieldDescription>
           </Field>
           <div className="flex items-center gap-2">
-            <Button type="submit">Tạo công việc</Button>
+            <SubmitButton>Tạo công việc</SubmitButton>
             <Button
               variant="outline"
               render={<Link href="/tasks" />}
@@ -86,7 +93,7 @@ export default async function NewTaskPage() {
               Quay lại
             </Button>
           </div>
-        </form>
+        </ActionForm>
       </Card>
     </div>
   );

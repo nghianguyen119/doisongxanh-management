@@ -38,6 +38,11 @@ export function useActionToast(
       toast.error(state.error, { id })
       return
     }
+    if (state?.warning) {
+      toast.warning(state.warning, { id })
+      if (redirect && state.redirectTo) router.push(state.redirectTo)
+      return
+    }
     if (state?.success) {
       toast.success(successMessage, { id })
       if (redirect && state.redirectTo) router.push(state.redirectTo)

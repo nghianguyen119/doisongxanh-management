@@ -1,0 +1,1 @@
+ALTER TYPE "public"."conversation_state" ADD VALUE 'awaiting_task_pick';

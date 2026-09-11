@@ -48,4 +48,5 @@ export const conversationState = pgEnum("conversation_state", [
   "awaiting_issue_text",
   "awaiting_done_note",
   "awaiting_done_photo",
+  "awaiting_task_pick",
 ]);
