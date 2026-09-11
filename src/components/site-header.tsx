@@ -8,6 +8,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 const SECTION_TITLES: [prefix: string, title: string][] = [
   ["/dashboard", "Tổng quan"],
   ["/tasks", "Công việc"],
+  ["/kanban", "Bảng tiến độ"],
   ["/employees", "Nhân viên"],
   ["/settings/zalo", "Zalo OA"],
 ]

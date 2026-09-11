@@ -14,6 +14,7 @@ import { DataTableToolbar } from "@/components/data-table/data-table-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TaskRowActions } from "@/components/task-row-actions"
+import { TasksActionBar } from "@/components/tasks-action-bar"
 import { useDataTable } from "@/hooks/use-data-table"
 import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL } from "@/lib/labels"
 import { cn } from "@/lib/utils"
@@ -194,7 +195,11 @@ export function TasksTable({
   })
 
   return (
-    <DataTable table={table} emptyMessage="Chưa có công việc nào.">
+    <DataTable
+      table={table}
+      emptyMessage="Chưa có công việc nào."
+      actionBar={<TasksActionBar table={table} />}
+    >
       <DataTableToolbar table={table} />
     </DataTable>
   )

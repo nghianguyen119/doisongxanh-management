@@ -1,9 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, taskAttachment, taskEvent } from "@/db/schema";
+import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import type { TaskCardInput } from "./bot-copy";
 import * as notify from "./notification-service";
-import { statusesAllowedToReach, type TaskStatus } from "./task-status";
+import { statusesAllowedToReach, canTransition, isClosed, type TaskStatus } from "./task-status";
 
 type TaskRow = typeof task.$inferSelect;
 type Actor = { type: "manager" | "employee" | "system"; id: string | null };
@@ -15,7 +16,15 @@ type Actor = { type: "manager" | "employee" | "system"; id: string | null };
  */
 export type TaskResult =
   | { ok: true; task: TaskRow }
-  | { ok: false; reason: "not_found" | "closed"; task?: TaskRow };
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "closed"
+        | "invalid_assignee"
+        | "invalid_transition";
+      task?: TaskRow;
+    };
 
 function toCard(t: TaskRow): TaskCardInput {
   return {
@@ -63,9 +72,18 @@ async function transition(
   to: TaskStatus,
   extra: Partial<typeof task.$inferInsert> = {},
 ): Promise<TaskResult> {
+  const patch: Partial<typeof task.$inferInsert> = {
+    status: to,
+    updatedAt: new Date(),
+    ...extra,
+  };
+  // Leaving `done` (rejected work, stale button, reassignment) must clear the
+  // completion timestamp, otherwise the task looks finished while it is open.
+  if (to !== "done") patch.completedAt = null;
+
   const [row] = await db
     .update(task)
-    .set({ status: to, updatedAt: new Date(), ...extra })
+    .set(patch)
     .where(
       and(eq(task.id, taskId), inArray(task.status, statusesAllowedToReach(to))),
     )
@@ -125,6 +143,11 @@ export async function updateTask(input: {
 }): Promise<TaskResult> {
   const before = await getTask(input.taskId);
   if (!before) return { ok: false, reason: "not_found" };
+  // Verified/cancelled work is frozen: rewriting a finished record would hide
+  // what was actually agreed.
+  if (isClosed(before.status)) return { ok: false, reason: "closed", task: before };
+
+  const dueChanged = before.dueAt?.getTime() !== input.dueAt?.getTime();
 
   const [row] = await db
     .update(task)
@@ -134,6 +157,9 @@ export async function updateTask(input: {
       priority: input.priority,
       dueAt: input.dueAt ?? null,
       updatedAt: new Date(),
+      // A moved deadline deserves a fresh reminder instead of being throttled
+      // out by the previous one.
+      ...(dueChanged ? { lastRemindedAt: null } : {}),
     })
     .where(eq(task.id, input.taskId))
     .returning();
@@ -160,6 +186,15 @@ export async function assignTask(input: {
   assigneeId: string;
   actorId: string;
 }): Promise<TaskResult> {
+  // Inactive staff cannot be assigned new work (and the FK would otherwise
+  // fail for an id that does not exist at all).
+  const emp = await db.query.employee.findFirst({
+    where: eq(employee.id, input.assigneeId),
+  });
+  if (!emp || emp.status === "inactive") {
+    return { ok: false, reason: "invalid_assignee" };
+  }
+
   const res = await transition(input.taskId, "assigned", {
     assigneeId: input.assigneeId,
     assignedAt: new Date(),
@@ -181,6 +216,28 @@ export async function assignTask(input: {
       });
     }
   }
+  return res;
+}
+
+export async function unassignTask(input: {
+  taskId: string;
+  actorId: string;
+}): Promise<TaskResult> {
+  // Only work that has not started can go back to the backlog.
+  const res = await transition(input.taskId, "new", {
+    assigneeId: null,
+    assignedAt: null,
+    completedAt: null,
+    lastRemindedAt: null,
+  });
+  if (!res.ok) return res;
+
+  await logEvent(
+    input.taskId,
+    "status_changed",
+    { type: "manager", id: input.actorId },
+    { to: "new", reason: "unassigned" },
+  );
   return res;
 }
 
@@ -234,6 +291,64 @@ export async function addManagerComment(input: {
   const zid = await assigneeZaloId(t);
   if (zid) await notify.forwardManagerComment(zid, input.text);
   return { ok: true, task: t };
+}
+
+/**
+ * Board move: a manager drops a card into another column. The transition table
+ * still guards what is legal, `assigned` needs an assignee, and going back to
+ * `new` clears the assignment.
+ */
+export async function moveTaskTo(input: {
+  taskId: string;
+  to: TaskStatus;
+  actorId: string;
+}): Promise<TaskResult> {
+  const before = await getTask(input.taskId);
+  if (!before) return { ok: false, reason: "not_found" };
+  if (isClosed(before.status))
+    return { ok: false, reason: "closed", task: before };
+  // Checked here as well as inside `transition` so the caller can tell a bad
+  // direction apart from a concurrent change.
+  if (!canTransition(before.status, input.to)) {
+    return { ok: false, reason: "invalid_transition", task: before };
+  }
+
+  if (input.to === "assigned") {
+    if (!before.assigneeId) {
+      return { ok: false, reason: "invalid_assignee", task: before };
+    }
+    const emp = await db.query.employee.findFirst({
+      where: eq(employee.id, before.assigneeId),
+    });
+    if (!emp || emp.status === "inactive") {
+      return { ok: false, reason: "invalid_assignee", task: before };
+    }
+  }
+
+  const extra: Partial<typeof task.$inferInsert> = {};
+  if (input.to === "done") {
+    // Match the Zalo completion path; `transition` only clears it otherwise.
+    extra.completedAt = new Date();
+  }
+  if (input.to === "new") {
+    extra.assigneeId = null;
+    extra.assignedAt = null;
+    extra.lastRemindedAt = null;
+  } else if (OPEN_TASK_STATUSES.includes(input.to)) {
+    // Moving back into an open column deserves fresh reminders.
+    extra.lastRemindedAt = null;
+  }
+
+  const res = await transition(input.taskId, input.to, extra);
+  if (!res.ok) return res;
+
+  await logEvent(
+    input.taskId,
+    "status_changed",
+    { type: "manager", id: input.actorId },
+    { to: input.to, via: "kanban" },
+  );
+  return res;
 }
 
 // ---------------------------------------------------------------------------

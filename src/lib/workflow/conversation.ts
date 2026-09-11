@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, zaloConversation } from "@/db/schema";
+import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import { getZaloClient } from "@/lib/zalo/factory";
 import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
 import { copy } from "./bot-copy";
@@ -10,7 +11,6 @@ import type { TaskResult } from "./task-service";
 import * as notify from "./notification-service";
 import { isClosed } from "./task-status";
 
-const OPEN_STATUSES = ["assigned", "accepted", "in_progress", "blocked"] as const;
 const SKIP_WORDS = ["bỏ qua", "bo qua", "skip", "không", "khong", "ko"];
 
 /**
@@ -76,7 +76,7 @@ async function openTasksFor(employeeId: string) {
   return db.query.task.findMany({
     where: and(
       eq(task.assigneeId, employeeId),
-      inArray(task.status, [...OPEN_STATUSES]),
+      inArray(task.status, OPEN_TASK_STATUSES),
     ),
     orderBy: desc(task.assignedAt),
   });
@@ -197,15 +197,11 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
 export async function handleFollow(zaloUserId: string) {
   const emp = await findEmployee(zaloUserId);
   if (emp) {
-    if (emp.status === "inactive") {
-      await db
-        .update(employee)
-        .set({ status: "active", updatedAt: new Date() })
-        .where(eq(employee.id, emp.id));
-    }
+    // Following the OA again does not undo a manager's decision to disable
+    // the account; only an explicit re-activation in the portal does.
+    if (emp.status === "inactive") return say(zaloUserId, copy.accountInactive);
     return say(zaloUserId, copy.help);
   }
-  await setState(zaloUserId, "awaiting_link_code");
   await getZaloClient().requestUserInfo(zaloUserId, copy.shareInfoPrompt);
   await say(zaloUserId, copy.followGreeting);
 }
@@ -232,7 +228,10 @@ export async function handleUserInfo(
     await setState(zaloUserId, "idle");
     await say(zaloUserId, copy.phoneLinkSuccess(res.name));
   } else {
-    await say(zaloUserId, copy.phoneLinkNotFound);
+    await say(
+      zaloUserId,
+      res.reason === "inactive" ? copy.accountInactive : copy.phoneLinkNotFound,
+    );
   }
 }
 
@@ -294,7 +293,11 @@ async function handleUnlinkedText(zaloUserId: string, text: string) {
     }
     return say(
       zaloUserId,
-      res.reason === "already_linked" ? copy.alreadyLinked : copy.linkNotFound,
+      res.reason === "already_linked"
+        ? copy.alreadyLinked
+        : res.reason === "inactive"
+          ? copy.accountInactive
+          : copy.linkNotFound,
     );
   }
   return say(zaloUserId, copy.notLinkedHint);

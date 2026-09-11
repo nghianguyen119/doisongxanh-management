@@ -8,6 +8,13 @@
       "when": 1789024140637,
       "tag": "0000_wise_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789117191703,
+      "tag": "0001_medical_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

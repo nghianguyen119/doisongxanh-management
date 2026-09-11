@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="vi" className={cn("h-full antialiased", "font-sans", geist.variable)}>
       <body className="relative min-h-full flex flex-col">
         <NuqsAdapter>{children}</NuqsAdapter>
+        <Toaster />
       </body>
     </html>
   );

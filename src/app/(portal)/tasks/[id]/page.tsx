@@ -29,6 +29,7 @@ import {
   assignTaskAction,
   cancelTaskAction,
   commentTaskAction,
+  unassignTaskAction,
   updateTaskAction,
   verifyTaskAction,
 } from "@/lib/actions/tasks";
@@ -297,6 +298,15 @@ export default async function TaskDetailPage({
               </Button>
             </form>
 
+            {t.assigneeId && !closed && (
+              <form action={unassignTaskAction}>
+                <input type="hidden" name="taskId" value={t.id} />
+                <Button type="submit" variant="ghost" className="w-full">
+                  Bỏ giao (về Mới tạo)
+                </Button>
+              </form>
+            )}
+
             {t.status === "done" && (
               <form action={verifyTaskAction}>
                 <input type="hidden" name="taskId" value={t.id} />
@@ -316,19 +326,20 @@ export default async function TaskDetailPage({
             )}
           </Card>
 
-          <Card className="gap-0 p-5">
-            <Collapsible>
-              <CollapsibleTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                  />
-                }
-              >
-                Sửa nội dung công việc
-                <PencilSimpleIcon />
-              </CollapsibleTrigger>
+          {!closed && (
+            <Card className="gap-0 p-5">
+              <Collapsible>
+                <CollapsibleTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      className="w-full justify-between"
+                    />
+                  }
+                >
+                  Sửa nội dung công việc
+                  <PencilSimpleIcon />
+                </CollapsibleTrigger>
               <CollapsibleContent>
                 <form action={updateTaskAction} className="mt-3 space-y-3">
                   <input type="hidden" name="taskId" value={t.id} />
@@ -385,6 +396,7 @@ export default async function TaskDetailPage({
               </CollapsibleContent>
             </Collapsible>
           </Card>
+          )}
         </div>
       </div>
     </div>

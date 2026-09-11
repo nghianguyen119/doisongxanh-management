@@ -15,7 +15,15 @@ export type TaskStatus = (typeof taskStatus.enumValues)[number];
  */
 export const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   new: ["assigned", "cancelled"],
-  assigned: ["accepted", "in_progress", "done", "blocked", "assigned", "cancelled"],
+  assigned: [
+    "accepted",
+    "in_progress",
+    "done",
+    "blocked",
+    "assigned",
+    "new",
+    "cancelled",
+  ],
   accepted: ["in_progress", "done", "blocked", "assigned", "cancelled"],
   in_progress: ["done", "blocked", "assigned", "cancelled"],
   blocked: ["accepted", "in_progress", "done", "assigned", "cancelled"],

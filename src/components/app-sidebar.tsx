@@ -36,7 +36,7 @@ const NAV_MAIN = [
     icon: <ListChecksIcon weight="duotone" color="#10b981" />,
   },
   {
-    title: "Kanban",
+    title: "Bảng tiến độ",
     url: "/kanban",
     icon: <KanbanIcon weight="duotone" color="#f43f5e" />,
   },

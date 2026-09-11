@@ -56,6 +56,13 @@ describe("task status transitions", () => {
     expect(canTransition("done", "in_progress")).toBe(true);
   });
 
+  it("returns only unstarted work to the backlog", () => {
+    expect(canTransition("assigned", "new")).toBe(true);
+    expect(canTransition("accepted", "new")).toBe(false);
+    expect(canTransition("in_progress", "new")).toBe(false);
+    expect(canTransition("blocked", "new")).toBe(false);
+  });
+
   it("only verifies work that was reported done", () => {
     const canVerify = statusesAllowedToReach("verified");
     expect(canVerify).toEqual(["done"]);

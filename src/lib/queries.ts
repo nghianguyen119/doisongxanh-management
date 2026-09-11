@@ -8,6 +8,7 @@ import {
   inArray,
   isNotNull,
   lt,
+  ne,
   sql,
 } from "drizzle-orm";
 import { db } from "@/db";
@@ -25,6 +26,7 @@ import {
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import type { TaskStatus } from "@/lib/workflow/task-status";
 import type { ExtendedColumnFilter } from "@/types/data-table";
+import type { KanbanTask } from "@/components/kanban/columns";
 
 export async function getDashboardData() {
   const statusRows = await db
@@ -175,7 +177,14 @@ function getTaskOrderBy(sort: string | null) {
     case "due":
       return [order(task.dueAt)];
     case "assignee":
-      return [order(task.assigneeId)];
+      // Sort by the person's name, not the UUID stored on the row. Raw
+      // identifiers: the relational query builder rewrites column interpolations
+      // to its own aliases, which breaks a correlated subquery like this.
+      return [
+        sql`(select "employee"."name" from "employee" where "employee"."id" = "task"."assignee_id") ${
+          direction === "asc" ? sql`asc nulls last` : sql`desc nulls last`
+        }`,
+      ];
     default:
       return [desc(task.updatedAt)];
   }
@@ -353,4 +362,44 @@ export async function listActiveEmployeesForSelect() {
     .from(employee)
     .where(inArray(employee.status, ["active", "invited"]))
     .orderBy(asc(employee.name));
+}
+
+/**
+ * Every task that still belongs on the board, with the bits the cards show.
+ * Cancelled tasks are left to /tasks.
+ */
+export async function getKanbanTasks(): Promise<KanbanTask[]> {
+  const [rows, attachmentRows] = await Promise.all([
+    db.query.task.findMany({
+      where: ne(task.status, "cancelled"),
+      orderBy: [desc(task.updatedAt)],
+      with: { assignee: { columns: { name: true } } },
+      extras: {
+        overdue:
+          sql<boolean>`${task.dueAt} is not null and ${task.dueAt} < now()`.as(
+            "overdue",
+          ),
+      },
+    }),
+    db
+      .select({ taskId: taskAttachment.taskId, n: count() })
+      .from(taskAttachment)
+      .groupBy(taskAttachment.taskId),
+  ]);
+
+  const attachmentCounts = new Map(
+    attachmentRows.map((row) => [row.taskId, Number(row.n)]),
+  );
+
+  return rows.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    status: t.status,
+    priority: t.priority,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+    overdue: t.overdue,
+    assigneeName: t.assignee?.name ?? null,
+    attachmentCount: attachmentCounts.get(t.id) ?? 0,
+  }));
 }

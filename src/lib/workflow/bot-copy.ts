@@ -79,6 +79,8 @@ export const copy = {
     `Đã xác minh số điện thoại và kết nối tài khoản cho ${name}. ✅`,
   phoneLinkNotFound:
     "Chưa tìm thấy nhân viên với số điện thoại này. Vui lòng liên hệ quản lý.",
+  accountInactive:
+    "Tài khoản của bạn đang tạm ngưng. Vui lòng liên hệ quản lý để mở lại.",
   notLinkedHint:
     "Tài khoản Zalo của bạn chưa được kết nối. Vui lòng gửi MÃ MỜI do quản lý cấp.",
   shareInfoPrompt: "Chia sẻ tên và số điện thoại để kết nối tài khoản",
@@ -106,8 +108,6 @@ export const copy = {
   taskClosed:
     "Công việc này đã kết thúc nên không cập nhật được nữa. Nếu cần, vui lòng báo quản lý.",
   taskNotYours: "Công việc này hiện không thuộc về bạn.",
-  stateExpired:
-    "Đã quá lâu nên mình huỷ thao tác trước đó. Bạn hãy bấm lại nút trên tin nhắn công việc nhé.",
 
   managerComment: (text: string) => `💬 Quản lý: ${text}`,
   employeeCommentAck: "Đã chuyển lời nhắn của bạn tới quản lý. 📨",

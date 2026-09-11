@@ -1,21 +1,38 @@
 import { customAlphabet } from "nanoid";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, employeeInvite } from "@/db/schema";
 import { getZaloClient } from "@/lib/zalo/factory";
 
 const makeCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Consumed invites are useful as history for a while, then cleaned up. */
+const CONSUMED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type LinkResult =
   | { ok: true; employeeId: string; name: string }
-  | { ok: false; reason: "not_found" | "already_linked" | "expired" };
+  | {
+      ok: false;
+      reason: "not_found" | "already_linked" | "expired" | "inactive";
+    };
 
 /** Normalise a VN phone: strip separators, 84xxxxxxxxx / +84 -> 0xxxxxxxxx. */
 export function normalizePhone(input: string): string {
   let p = input.replace(/[^\d]/g, "");
   if (p.startsWith("84")) p = "0" + p.slice(2);
   return p;
+}
+
+/** A normalised VN number: 10-digit mobile or 11-digit landline starting with 0. */
+export function isValidPhone(phone: string): boolean {
+  return /^0\d{9,10}$/.test(phone);
+}
+
+/** Normalise user input, returning null when it is empty or not a valid VN phone. */
+export function parsePhone(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const normalized = normalizePhone(input);
+  return normalized && isValidPhone(normalized) ? normalized : null;
 }
 
 export async function generateInvite(
@@ -30,6 +47,19 @@ export async function generateInvite(
       and(
         eq(employeeInvite.employeeId, employeeId),
         isNull(employeeInvite.consumedAt),
+      ),
+    );
+
+  await db
+    .delete(employeeInvite)
+    .where(
+      and(
+        eq(employeeInvite.employeeId, employeeId),
+        isNotNull(employeeInvite.consumedAt),
+        lt(
+          employeeInvite.consumedAt,
+          new Date(Date.now() - CONSUMED_RETENTION_MS),
+        ),
       ),
     );
 
@@ -54,6 +84,9 @@ export async function linkByInviteCode(
   if (!invite || invite.consumedAt) return { ok: false, reason: "not_found" };
   if (invite.expiresAt.getTime() < Date.now())
     return { ok: false, reason: "expired" };
+  // A deactivated account must be re-enabled by a manager, not by an old code.
+  if (invite.employee.status === "inactive")
+    return { ok: false, reason: "inactive" };
   if (invite.employee.zaloUserId && invite.employee.zaloUserId !== zaloUserId)
     return { ok: false, reason: "already_linked" };
 
@@ -75,6 +108,7 @@ export async function linkByPhone(
     where: and(eq(employee.phone, phone), isNull(employee.zaloUserId)),
   });
   if (!emp) return { ok: false, reason: "not_found" };
+  if (emp.status === "inactive") return { ok: false, reason: "inactive" };
 
   await finalizeLink(emp.id, zaloUserId);
   return { ok: true, employeeId: emp.id, name: emp.name };

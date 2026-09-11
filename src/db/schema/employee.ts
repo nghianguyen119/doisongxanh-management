@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { employeeStatus } from "./enums";
 import { user } from "./auth";
 
@@ -23,7 +30,11 @@ export const employee = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("employee_status_idx").on(t.status)],
+  (t) => [
+    index("employee_status_idx").on(t.status),
+    // Postgres treats NULLs as distinct, so unlinked employees are unaffected.
+    uniqueIndex("employee_phone_unique").on(t.phone),
+  ],
 );
 
 /**
@@ -43,7 +54,10 @@ export const employeeInvite = pgTable(
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("employee_invite_code_idx").on(t.code)],
+  (t) => [
+    index("employee_invite_code_idx").on(t.code),
+    index("employee_invite_employee_idx").on(t.employeeId),
+  ],
 );
 
 export const employeeRelations = relations(employee, ({ many }) => ({

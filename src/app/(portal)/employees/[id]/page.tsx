@@ -6,6 +6,7 @@ import {
   generateInviteAction,
   linkManualAction,
   setEmployeeStatusAction,
+  unlinkZaloAction,
   updateEmployeeAction,
 } from "@/lib/actions/employees";
 import {
@@ -22,6 +23,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+
+function tasksByAssigneeHref(employeeId: string) {
+  const filters = encodeURIComponent(
+    JSON.stringify([{ id: "assignee", value: [employeeId] }]),
+  );
+  return `/tasks?filters=${filters}`;
+}
 
 export default async function EmployeeDetailPage({
   params,
@@ -45,6 +53,21 @@ export default async function EmployeeDetailPage({
           </Badge>
         }
       />
+
+      {openTasks > 0 && (
+        <Card className="mb-6 gap-0 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          Nhân viên còn <b>{openTasks}</b> việc đang mở.{" "}
+          {e.status !== "inactive"
+            ? "Nên giao lại trước khi ngừng hoạt động."
+            : "Các việc này sẽ không còn được nhắc qua Zalo."}{" "}
+          <Link
+            href={tasksByAssigneeHref(e.id)}
+            className="font-medium underline underline-offset-4"
+          >
+            Xem danh sách
+          </Link>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="gap-4 p-5">
@@ -115,7 +138,15 @@ export default async function EmployeeDetailPage({
                   {e.zaloUserId}
                 </span>
               </div>
-              <CopyButton value={e.zaloUserId} label="Sao chép ID" />
+              <div className="flex shrink-0 items-center gap-2">
+                <CopyButton value={e.zaloUserId} label="Sao chép ID" />
+                <form action={unlinkZaloAction}>
+                  <input type="hidden" name="employeeId" value={e.id} />
+                  <Button type="submit" variant="outline" size="sm">
+                    Hủy kết nối
+                  </Button>
+                </form>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Chưa kết nối Zalo.</p>

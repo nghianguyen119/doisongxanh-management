@@ -18,6 +18,7 @@ import { useDataTable } from "@/hooks/use-data-table"
 import { EMPLOYEE_STATUS_LABEL } from "@/lib/labels"
 import type { Option } from "@/types/data-table"
 import { EmployeeRowActions } from "@/components/employee-row-actions"
+import { EmployeesActionBar } from "@/components/employees-action-bar"
 
 export interface EmployeeRow {
   id: string
@@ -176,7 +177,11 @@ export function EmployeesTable({
   })
 
   return (
-    <DataTable table={table} emptyMessage="Chưa có nhân viên nào.">
+    <DataTable
+      table={table}
+      emptyMessage="Chưa có nhân viên nào."
+      actionBar={<EmployeesActionBar table={table} />}
+    >
       <DataTableToolbar table={table} />
     </DataTable>
   )
