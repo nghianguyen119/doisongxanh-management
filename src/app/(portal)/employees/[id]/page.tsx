@@ -12,7 +12,10 @@ import {
   TASK_STATUS_LABEL,
   TASK_STATUS_TONE,
 } from "@/lib/labels";
-import { Badge, Button, Card, PageHeader, inputClass } from "@/components/ui";
+import { PageHeader, inputClass } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default async function EmployeeDetailPage({
   params,
@@ -31,7 +34,7 @@ export default async function EmployeeDetailPage({
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="space-y-3">
+        <Card className="gap-3 p-5">
           <h2 className="font-semibold">Kết nối Zalo</h2>
           {e.zaloUserId ? (
             <p className="text-sm">
@@ -57,7 +60,7 @@ export default async function EmployeeDetailPage({
             ) : (
               <form action={generateInviteAction}>
                 <input type="hidden" name="employeeId" value={e.id} />
-                <Button type="submit" variant="ghost">
+                <Button type="submit" variant="outline">
                   Tạo mã mời
                 </Button>
               </form>
@@ -82,7 +85,7 @@ export default async function EmployeeDetailPage({
                 required
                 className={inputClass}
               />
-              <Button type="submit" variant="ghost">
+              <Button type="submit" variant="outline">
                 Gắn
               </Button>
             </form>
@@ -100,14 +103,14 @@ export default async function EmployeeDetailPage({
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Ngừng</option>
               </select>
-              <Button type="submit" variant="ghost">
+              <Button type="submit" variant="outline">
                 Lưu
               </Button>
             </form>
           </div>
         </Card>
 
-        <Card>
+        <Card className="gap-0 p-5">
           <h2 className="mb-3 font-semibold">Công việc</h2>
           {tasks.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có công việc nào.</p>
@@ -121,7 +124,7 @@ export default async function EmployeeDetailPage({
                   >
                     {t.title}
                   </Link>{" "}
-                  <Badge tone={TASK_STATUS_TONE[t.status]}>
+                  <Badge className={TASK_STATUS_TONE[t.status]}>
                     {TASK_STATUS_LABEL[t.status]}
                   </Badge>
                 </li>

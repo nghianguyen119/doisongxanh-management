@@ -1,6 +1,9 @@
 import { listActiveEmployeesForSelect } from "@/lib/queries";
 import { createTaskAction } from "@/lib/actions/tasks";
-import { Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
+import { PageHeader, inputClass } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { EMPLOYEE_STATUS_LABEL } from "@/lib/labels";
 
 export default async function NewTaskPage() {
@@ -12,32 +15,58 @@ export default async function NewTaskPage() {
         title="Tạo công việc"
         description="Giao ngay cho nhân viên để gửi thông báo qua Zalo."
       />
-      <Card>
+      <Card className="gap-0 p-5">
         <form action={createTaskAction} className="space-y-4">
-          <Field label="Tiêu đề">
-            <input name="title" required className={inputClass} />
+          <Field>
+            <FieldLabel htmlFor="title">Tiêu đề</FieldLabel>
+            <input id="title" name="title" required className={inputClass} />
           </Field>
-          <Field label="Mô tả" hint="Nội dung nhân viên sẽ nhận qua Zalo.">
-            <textarea name="description" rows={4} className={inputClass} />
+          <Field>
+            <FieldLabel htmlFor="description">Mô tả</FieldLabel>
+            <textarea
+              id="description"
+              name="description"
+              rows={4}
+              className={inputClass}
+            />
+            <FieldDescription>
+              Nội dung nhân viên sẽ nhận qua Zalo.
+            </FieldDescription>
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Ưu tiên">
-              <select name="priority" defaultValue="normal" className={inputClass}>
+            <Field>
+              <FieldLabel htmlFor="priority">Ưu tiên</FieldLabel>
+              <select
+                id="priority"
+                name="priority"
+                defaultValue="normal"
+                className={inputClass}
+              >
                 <option value="low">Thấp</option>
                 <option value="normal">Bình thường</option>
                 <option value="high">Cao</option>
                 <option value="urgent">Khẩn</option>
               </select>
             </Field>
-            <Field label="Hạn hoàn thành" hint="Giờ Việt Nam.">
-              <input type="datetime-local" name="dueAt" className={inputClass} />
+            <Field>
+              <FieldLabel htmlFor="dueAt">Hạn hoàn thành</FieldLabel>
+              <input
+                id="dueAt"
+                type="datetime-local"
+                name="dueAt"
+                className={inputClass}
+              />
+              <FieldDescription>Giờ Việt Nam.</FieldDescription>
             </Field>
           </div>
-          <Field
-            label="Giao cho"
-            hint="Bỏ trống để tạo nháp và giao sau. Nhân viên phải đã kết nối Zalo."
-          >
-            <select name="assigneeId" defaultValue="" className={inputClass}>
+          <Field>
+            <FieldLabel htmlFor="assigneeId">Giao cho</FieldLabel>
+            <select
+              id="assigneeId"
+              name="assigneeId"
+              defaultValue=""
+              className={inputClass}
+            >
               <option value="">— Chưa giao —</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -45,6 +74,9 @@ export default async function NewTaskPage() {
                 </option>
               ))}
             </select>
+            <FieldDescription>
+              Bỏ trống để tạo nháp và giao sau. Nhân viên phải đã kết nối Zalo.
+            </FieldDescription>
           </Field>
           <Button type="submit">Tạo công việc</Button>
         </form>

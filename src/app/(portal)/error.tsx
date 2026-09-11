@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 /**
  * Server actions reject invalid operations (e.g. verifying an already
@@ -15,7 +16,7 @@ export default function PortalError({
   reset: () => void;
 }) {
   return (
-    <Card className="mx-auto max-w-md text-center">
+    <Card className="mx-auto max-w-md gap-0 p-5 text-center">
       <div className="text-3xl">⚠️</div>
       <h2 className="mt-2 font-semibold">Không thực hiện được</h2>
       <p className="mt-1 text-sm text-muted-foreground">

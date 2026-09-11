@@ -7,6 +7,7 @@ import {
   ListChecksIcon,
   UsersIcon,
   ChatCircleIcon,
+  KanbanIcon,
   LeafIcon,
 } from "@phosphor-icons/react"
 
@@ -33,6 +34,11 @@ const NAV_MAIN = [
     title: "Công việc",
     url: "/tasks",
     icon: <ListChecksIcon weight="duotone" color="#10b981" />,
+  },
+  {
+    title: "Kanban",
+    url: "/kanban",
+    icon: <KanbanIcon weight="duotone" color="#f43f5e" />,
   },
   {
     title: "Nhân viên",

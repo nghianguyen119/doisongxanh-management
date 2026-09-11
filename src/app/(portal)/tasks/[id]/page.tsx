@@ -17,7 +17,11 @@ import {
   updateTaskAction,
   verifyTaskAction,
 } from "@/lib/actions/tasks";
-import { Badge, Button, Card, Field, PageHeader, inputClass } from "@/components/ui";
+import { PageHeader, inputClass } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 
 export default async function TaskDetailPage({
   params,
@@ -42,7 +46,7 @@ export default async function TaskDetailPage({
         title={t.title}
         description={t.description ?? undefined}
         action={
-          <Badge tone={TASK_STATUS_TONE[t.status]}>
+          <Badge className={TASK_STATUS_TONE[t.status]}>
             {TASK_STATUS_LABEL[t.status]}
           </Badge>
         }
@@ -50,7 +54,7 @@ export default async function TaskDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
         <div className="space-y-6">
-          <Card>
+          <Card className="gap-0 p-5">
             <h2 className="mb-3 font-semibold">Diễn tiến</h2>
             <ol className="space-y-3">
               {t.events.map((e) => {
@@ -84,7 +88,7 @@ export default async function TaskDetailPage({
           </Card>
 
           {t.attachments.length > 0 && (
-            <Card>
+            <Card className="gap-0 p-5">
               <h2 className="mb-3 font-semibold">Hình ảnh đính kèm</h2>
               <div className="grid grid-cols-3 gap-2">
                 {t.attachments.map((a) => (
@@ -110,7 +114,7 @@ export default async function TaskDetailPage({
             </Card>
           )}
 
-          <Card>
+          <Card className="gap-0 p-5">
             <h2 className="mb-3 font-semibold">Gửi lời nhắn cho nhân viên</h2>
             {t.assignee?.zaloUserId ? (
               <form action={commentTaskAction} className="flex gap-2">
@@ -132,7 +136,7 @@ export default async function TaskDetailPage({
         </div>
 
         <div className="space-y-4">
-          <Card>
+          <Card className="gap-0 p-5">
             <dl className="space-y-2 text-sm">
               <div>
                 <dt className="text-muted-foreground">Nhân viên</dt>
@@ -151,11 +155,19 @@ export default async function TaskDetailPage({
             </dl>
           </Card>
 
-          <Card className="space-y-3">
+          <Card className="gap-3 p-5">
             <form action={assignTaskAction} className="space-y-2">
               <input type="hidden" name="taskId" value={t.id} />
-              <Field label={t.assigneeId ? "Giao lại cho" : "Giao cho"}>
-                <select name="assigneeId" required className={inputClass}>
+              <Field>
+                <FieldLabel htmlFor="assigneeId">
+                  {t.assigneeId ? "Giao lại cho" : "Giao cho"}
+                </FieldLabel>
+                <select
+                  id="assigneeId"
+                  name="assigneeId"
+                  required
+                  className={inputClass}
+                >
                   <option value="">— Chọn nhân viên —</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>
@@ -164,7 +176,7 @@ export default async function TaskDetailPage({
                   ))}
                 </select>
               </Field>
-              <Button type="submit" variant="ghost" className="w-full">
+              <Button type="submit" variant="outline" className="w-full">
                 Giao / Gửi lại Zalo
               </Button>
             </form>
@@ -181,38 +193,44 @@ export default async function TaskDetailPage({
             {!closed && (
               <form action={cancelTaskAction}>
                 <input type="hidden" name="taskId" value={t.id} />
-                <Button type="submit" variant="danger" className="w-full">
+                <Button type="submit" variant="destructive" className="w-full">
                   Huỷ công việc
                 </Button>
               </form>
             )}
           </Card>
 
-          <Card>
+          <Card className="gap-0 p-5">
             <details>
               <summary className="cursor-pointer text-sm font-medium">
                 Sửa nội dung công việc
               </summary>
               <form action={updateTaskAction} className="mt-3 space-y-3">
                 <input type="hidden" name="taskId" value={t.id} />
-                <Field label="Tiêu đề">
+                <Field>
+                  <FieldLabel htmlFor="edit-title">Tiêu đề</FieldLabel>
                   <input
+                    id="edit-title"
                     name="title"
                     required
                     defaultValue={t.title}
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Mô tả">
+                <Field>
+                  <FieldLabel htmlFor="edit-description">Mô tả</FieldLabel>
                   <textarea
+                    id="edit-description"
                     name="description"
                     rows={3}
                     defaultValue={t.description ?? ""}
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Ưu tiên">
+                <Field>
+                  <FieldLabel htmlFor="edit-priority">Ưu tiên</FieldLabel>
                   <select
+                    id="edit-priority"
                     name="priority"
                     defaultValue={t.priority}
                     className={inputClass}
@@ -224,15 +242,18 @@ export default async function TaskDetailPage({
                     ))}
                   </select>
                 </Field>
-                <Field label="Hạn hoàn thành" hint="Giờ Việt Nam.">
+                <Field>
+                  <FieldLabel htmlFor="edit-dueAt">Hạn hoàn thành</FieldLabel>
                   <input
+                    id="edit-dueAt"
                     type="datetime-local"
                     name="dueAt"
                     defaultValue={toVNInputValue(t.dueAt)}
                     className={inputClass}
                   />
+                  <FieldDescription>Giờ Việt Nam.</FieldDescription>
                 </Field>
-                <Button type="submit" variant="ghost" className="w-full">
+                <Button type="submit" variant="outline" className="w-full">
                   Lưu thay đổi
                 </Button>
               </form>

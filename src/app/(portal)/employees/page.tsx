@@ -2,14 +2,11 @@ import Link from "next/link";
 import { listEmployees } from "@/lib/queries";
 import { createEmployeeAction } from "@/lib/actions/employees";
 import { EMPLOYEE_STATUS_LABEL } from "@/lib/labels";
-import {
-  Badge,
-  Button,
-  Card,
-  Field,
-  PageHeader,
-  inputClass,
-} from "@/components/ui";
+import { PageHeader, inputClass } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 
 export default async function EmployeesPage() {
   const employees = await listEmployees();
@@ -63,20 +60,23 @@ export default async function EmployeesPage() {
           </table>
         </div>
 
-        <Card>
+        <Card className="gap-0 p-5">
           <h2 className="mb-3 font-semibold">Thêm nhân viên</h2>
           <form action={createEmployeeAction} className="space-y-3">
-            <Field label="Tên">
-              <input name="name" required className={inputClass} />
+            <Field>
+              <FieldLabel htmlFor="name">Tên</FieldLabel>
+              <input id="name" name="name" required className={inputClass} />
             </Field>
-            <Field
-              label="Số điện thoại"
-              hint="Dùng để nhân viên tự kết nối bằng cách chia sẻ SĐT trên Zalo."
-            >
-              <input name="phone" className={inputClass} />
+            <Field>
+              <FieldLabel htmlFor="phone">Số điện thoại</FieldLabel>
+              <input id="phone" name="phone" className={inputClass} />
+              <FieldDescription>
+                Dùng để nhân viên tự kết nối bằng cách chia sẻ SĐT trên Zalo.
+              </FieldDescription>
             </Field>
-            <Field label="Vị trí">
-              <input name="position" className={inputClass} />
+            <Field>
+              <FieldLabel htmlFor="position">Vị trí</FieldLabel>
+              <input id="position" name="position" className={inputClass} />
             </Field>
             <Button type="submit" className="w-full">
               Thêm

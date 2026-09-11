@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "@/lib/auth-client";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 
 export function LoginButton({ next }: { next: string }) {
   const [loading, setLoading] = useState(false);

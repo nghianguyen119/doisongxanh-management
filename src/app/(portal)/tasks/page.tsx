@@ -10,7 +10,9 @@ import {
   TASK_STATUS_LABEL,
   TASK_STATUS_TONE,
 } from "@/lib/labels";
-import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { taskStatus } from "@/db/schema";
 
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
@@ -77,7 +79,11 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       </div>
 
       {tasks.length === 0 ? (
-        <EmptyState>Chưa có công việc nào.</EmptyState>
+        <Empty className="border p-10">
+          <EmptyHeader>
+            <EmptyTitle>Chưa có công việc nào.</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
@@ -109,7 +115,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                     {t.dueAt ? formatVNShort(t.dueAt) : "—"}
                   </td>
                   <td className="px-4 py-2">
-                    <Badge tone={TASK_STATUS_TONE[t.status]}>
+                    <Badge className={TASK_STATUS_TONE[t.status]}>
                       {TASK_STATUS_LABEL[t.status]}
                     </Badge>
                   </td>

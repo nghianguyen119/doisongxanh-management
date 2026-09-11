@@ -8,7 +8,9 @@ import {
   TASK_STATUS_LABEL,
   TASK_STATUS_TONE,
 } from "@/lib/labels";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { SectionCards } from "@/components/section-cards";
 
 export default async function DashboardPage() {
@@ -33,7 +35,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="gap-0 p-5">
           <h2 className="mb-3 font-semibold">Quá hạn / cần chú ý</h2>
           {overdue.length === 0 ? (
             <p className="text-sm text-muted-foreground">Không có công việc quá hạn. 🎉</p>
@@ -49,7 +51,7 @@ export default async function DashboardPage() {
                   </Link>
                   <div className="text-xs text-muted-foreground">
                     {t.assignee?.name ?? "Chưa giao"} ·{" "}
-                    <Badge tone={TASK_STATUS_TONE[t.status]}>
+                    <Badge className={TASK_STATUS_TONE[t.status]}>
                       {TASK_STATUS_LABEL[t.status]}
                     </Badge>
                   </div>
@@ -59,7 +61,7 @@ export default async function DashboardPage() {
           )}
         </Card>
 
-        <Card>
+        <Card className="gap-0 p-5">
           <h2 className="mb-3 font-semibold">Khối lượng theo nhân viên</h2>
           {workload.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có nhân viên hoạt động.</p>
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6 gap-0 p-5">
         <h2 className="mb-3 font-semibold">Hoạt động gần đây</h2>
         <ul className="divide-y divide-border">
           {recent.map((e) => (

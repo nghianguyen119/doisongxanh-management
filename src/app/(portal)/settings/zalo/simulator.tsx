@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, inputClass } from "@/components/ui";
+import { inputClass } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type LinkedEmployee = { id: string; name: string; zaloUserId: string };
 type LogRow = {
@@ -55,7 +57,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
   }
 
   return (
-    <Card>
+    <Card className="gap-0 p-5">
       <h2 className="mb-3 font-semibold">Mô phỏng Zalo (điện thoại nhân viên)</h2>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
@@ -129,21 +131,21 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
 
         <div className="flex flex-wrap gap-2 text-sm">
           <Button
-            variant="ghost"
+            variant="outline"
             disabled={busy}
             onClick={() => send({ kind: "image", imageUrls: [DEMO_IMAGE] })}
           >
             📷 Gửi ảnh
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             disabled={busy}
             onClick={() => send({ kind: "follow" })}
           >
             + Follow OA
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             disabled={busy}
             onClick={() => send({ kind: "unfollow" })}
           >
@@ -159,7 +161,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
             className={inputClass}
           />
           <Button
-            variant="ghost"
+            variant="outline"
             disabled={busy || !phone.trim()}
             onClick={() => send({ kind: "user_info", phone })}
           >
