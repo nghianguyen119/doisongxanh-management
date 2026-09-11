@@ -40,9 +40,12 @@ export async function POST(req: NextRequest) {
   }
 
   const event = parseZaloWebhook(body);
+  const sender =
+    body.sender?.id ?? body.follower?.id ?? body.user_id ?? "unknown";
   console.log(
-    `[zalo:webhook] received event=${body.event_name} ` +
-      `parsed=${event?.kind ?? "none"} in ${Date.now() - started}ms`,
+    `[zalo:webhook] received sig=ok event=${body.event_name} ` +
+      `parsed=${event?.kind ?? "none"} sender=${sender} ` +
+      `msg_id=${body.message?.msg_id ?? "-"} in ${Date.now() - started}ms`,
   );
 
   if (event) {

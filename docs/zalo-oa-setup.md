@@ -230,6 +230,38 @@ a rejected template — check `zalo_message_log` (§6.2).
 `zalo_message_log.error` holds Zalo's error code/message for failed sends —
 the first place to look when a message does not arrive.
 
+### Log lines to watch (Vercel Runtime Logs)
+
+Every Zalo interaction logs a single line; filter with `[zalo:` (and `[auth]`
+for sign-in). A full inbound event produces a chain like this:
+
+```
+[zalo:webhook] received sig=ok event=user_send_text parsed=text sender=123 msg_id=abc in 3ms
+[zalo:inbound] kind=text from=123 text="hoàn thành rồi"
+[zalo:state] user=123 -> idle ctx={"taskId":"…"}
+[zalo:task] action=done task=… employee=… status=in_progress
+[zalo:send] -> buttons to=123 buttons="Bạn hãy gửi 1 ảnh kết quả công việc…" [✔️ Đã xong | ⚠️ Báo sự cố]
+[zalo:send] <- ok buttons to=123 http=200 message_id=… in 412ms
+[zalo:inbound] handled kind=text from=123 in 780ms
+```
+
+| Prefix | What it shows |
+| ------ | ------------- |
+| `[zalo:webhook]` | HTTP request arrived; signature accepted (`sig=ok`), event name, parsed kind, sender, timing |
+| `[zalo:webhook] rejected bad signature …` | OA secret mismatch / missing header — request dropped with 401 |
+| `[zalo:inbound]` | Parsed event contents (text, image count, follow, phone) and handler result |
+| `[zalo:link]` | Linking decisions: code/phone attempts, follow/unfollow, active/inactive |
+| `[zalo:state]` | Conversation state machine transitions (with `taskId` context) |
+| `[zalo:task]` | Button actions, rejections (closed/not-yours), comments, done/issue notes |
+| `[zalo:send] ->` | Outbound OA call about to be made (`text=…` / `buttons=[…]`) |
+| `[zalo:send] <- ok` | Zalo accepted it, with `http`, `message_id` and latency |
+| `[zalo:send] <- FAIL` | Zalo error (`error=<code> message="…"`) or network error, with latency |
+| `[zalo:token]` | Token bootstrap/refresh: `refreshing`, `refreshed … expires_at=…`, or `refresh FAILED` |
+| `[notification] send failed` | The lifecycle layer saw a send throw (details logged by the line above) |
+
+Access tokens are never logged. Long message bodies are whitespace-collapsed and
+capped at ~400 chars (`…(+N)` marks the truncation).
+
 ---
 
 ## 5. Operations

@@ -19,10 +19,14 @@ export async function getAccessToken(): Promise<string> {
 
   if (!row) {
     if (!env.ZALO_OA_REFRESH_TOKEN) {
+      console.error(
+        "[zalo:token] not initialised: no zalo_oa_token row and ZALO_OA_REFRESH_TOKEN is unset",
+      );
       throw new Error(
         "Zalo OA not initialised: set ZALO_OA_ACCESS_TOKEN and ZALO_OA_REFRESH_TOKEN, then restart.",
       );
     }
+    console.log("[zalo:token] bootstrap: creating row from env refresh token");
     [row] = await db
       .insert(zaloOaToken)
       .values({
@@ -38,10 +42,14 @@ export async function getAccessToken(): Promise<string> {
     return row.accessToken;
   }
 
+  console.log(
+    `[zalo:token] refreshing (expires_at=${row.expiresAt.toISOString()})`,
+  );
   return refresh(row.refreshToken);
 }
 
 async function refresh(refreshToken: string): Promise<string> {
+  const started = Date.now();
   const res = await fetch(OAUTH_URL, {
     method: "POST",
     headers: {
@@ -63,7 +71,13 @@ async function refresh(refreshToken: string): Promise<string> {
     error_description?: string;
   };
 
+  const ms = Date.now() - started;
+
   if (!data.access_token) {
+    console.error(
+      `[zalo:token] refresh FAILED http=${res.status} in ${ms}ms: ` +
+        `${data.error_description ?? JSON.stringify(data)}`,
+    );
     throw new Error(
       `Zalo token refresh failed: ${data.error_description ?? JSON.stringify(data)}`,
     );
@@ -82,6 +96,11 @@ async function refresh(refreshToken: string): Promise<string> {
       updatedAt: new Date(),
     })
     .where(eq(zaloOaToken.id, ROW_ID));
+
+  console.log(
+    `[zalo:token] refreshed http=${res.status} in ${ms}ms ` +
+      `expires_at=${expiresAt.toISOString()} rotated=${Boolean(data.refresh_token)}`,
+  );
 
   return data.access_token;
 }

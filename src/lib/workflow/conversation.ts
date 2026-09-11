@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { employee, task, zaloConversation } from "@/db/schema";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import { getZaloClient } from "@/lib/zalo/factory";
+import { preview } from "@/lib/zalo/log";
 import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
 import { copy } from "./bot-copy";
 import * as linking from "./employee-linking";
@@ -63,6 +64,11 @@ async function setState(
   state: ConvRow["state"],
   context: Record<string, unknown> = {},
 ) {
+  console.log(
+    `[zalo:state] user=${zaloUserId} -> ${state}${
+      Object.keys(context).length ? ` ctx=${preview(context)}` : ""
+    }`,
+  );
   await db
     .insert(zaloConversation)
     .values({ zaloUserId, state, context })
@@ -88,6 +94,9 @@ async function openTasksFor(employeeId: string) {
  */
 async function reportFailure(zaloUserId: string, res: TaskResult) {
   if (res.ok) return;
+  console.log(
+    `[zalo:task] rejected from=${zaloUserId} reason=${res.reason} task=${res.task?.id ?? "?"}`,
+  );
   await say(
     zaloUserId,
     res.reason === "not_found" ? copy.noActiveTask : copy.taskClosed,
@@ -111,6 +120,9 @@ export async function handleInboundText(zaloUserId: string, text: string) {
   switch (conv.state) {
     case "awaiting_issue_text": {
       if (!ctx.taskId) break;
+      console.log(
+        `[zalo:task] issue report task=${ctx.taskId} from=${emp.id} text="${preview(text)}"`,
+      );
       const res = await tasks.reportIssue({
         taskId: ctx.taskId,
         employeeId: emp.id,
@@ -122,6 +134,9 @@ export async function handleInboundText(zaloUserId: string, text: string) {
 
     case "awaiting_done_note": {
       if (!ctx.taskId) break;
+      console.log(
+        `[zalo:task] done note task=${ctx.taskId} from=${emp.id} note="${preview(text)}"`,
+      );
       const res = await tasks.completeTask({
         taskId: ctx.taskId,
         employeeId: emp.id,
@@ -134,6 +149,9 @@ export async function handleInboundText(zaloUserId: string, text: string) {
     case "awaiting_done_photo": {
       if (!ctx.taskId) break;
       if (isSkip(text)) {
+        console.log(
+          `[zalo:task] done without photo task=${ctx.taskId} from=${emp.id}`,
+        );
         const res = await tasks.completeTask({
           taskId: ctx.taskId,
           employeeId: emp.id,
@@ -143,6 +161,9 @@ export async function handleInboundText(zaloUserId: string, text: string) {
         return reportFailure(zaloUserId, res);
       }
       // Treat it as the completion note and keep waiting for the photo.
+      console.log(
+        `[zalo:task] done note stored, waiting photo task=${ctx.taskId} from=${emp.id}`,
+      );
       await setState(zaloUserId, "awaiting_done_photo", { ...ctx, note: text });
       return say(zaloUserId, copy.askDonePhoto);
     }
@@ -153,12 +174,18 @@ export async function handleInboundText(zaloUserId: string, text: string) {
 
 export async function handleInboundImage(zaloUserId: string, urls: string[]) {
   const emp = await findEmployee(zaloUserId);
-  if (!emp) return say(zaloUserId, copy.notLinkedHint);
+  if (!emp) {
+    console.log(`[zalo:link] image from=${zaloUserId} not linked -> hint`);
+    return say(zaloUserId, copy.notLinkedHint);
+  }
 
   const conv = await getConversation(zaloUserId);
   const ctx = conv.context as { taskId?: string; note?: string };
 
   if (conv.state === "awaiting_done_photo" && ctx.taskId) {
+    console.log(
+      `[zalo:task] done photo task=${ctx.taskId} from=${emp.id} files=${urls.length}`,
+    );
     const res = await tasks.completeTask({
       taskId: ctx.taskId,
       employeeId: emp.id,
@@ -171,6 +198,9 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
 
   if (conv.state === "awaiting_issue_text" && ctx.taskId) {
     // Photo first, description still to come — attach it to the issue.
+    console.log(
+      `[zalo:task] issue photo task=${ctx.taskId} from=${emp.id} files=${urls.length}`,
+    );
     const res = await tasks.reportIssue({
       taskId: ctx.taskId,
       employeeId: emp.id,
@@ -183,6 +213,9 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
 
   const open = await openTasksFor(emp.id);
   if (open.length === 1) {
+    console.log(
+      `[zalo:task] image comment task=${open[0].id} from=${emp.id} files=${urls.length}`,
+    );
     await tasks.addEmployeeComment({
       taskId: open[0].id,
       employeeId: emp.id,
@@ -191,6 +224,9 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
     });
     return say(zaloUserId, copy.employeeCommentAck);
   }
+  console.log(
+    `[zalo:task] image from=${emp.id} not linked to a task (open=${open.length})`,
+  );
   await say(zaloUserId, open.length === 0 ? copy.noActiveTask : copy.help);
 }
 
@@ -199,9 +235,18 @@ export async function handleFollow(zaloUserId: string) {
   if (emp) {
     // Following the OA again does not undo a manager's decision to disable
     // the account; only an explicit re-activation in the portal does.
-    if (emp.status === "inactive") return say(zaloUserId, copy.accountInactive);
+    if (emp.status === "inactive") {
+      console.log(
+        `[zalo:link] follow from=${zaloUserId} employee=${emp.id} inactive -> notice`,
+      );
+      return say(zaloUserId, copy.accountInactive);
+    }
+    console.log(
+      `[zalo:link] follow from=${zaloUserId} employee=${emp.id} already linked`,
+    );
     return say(zaloUserId, copy.help);
   }
+  console.log(`[zalo:link] follow from=${zaloUserId} unlinked -> request info`);
   await getZaloClient().requestUserInfo(zaloUserId, copy.shareInfoPrompt);
   await say(zaloUserId, copy.followGreeting);
 }
@@ -209,10 +254,15 @@ export async function handleFollow(zaloUserId: string) {
 export async function handleUnfollow(zaloUserId: string) {
   const emp = await findEmployee(zaloUserId);
   if (emp) {
+    console.log(
+      `[zalo:link] unfollow from=${zaloUserId} employee=${emp.id} -> inactive`,
+    );
     await db
       .update(employee)
       .set({ status: "inactive", updatedAt: new Date() })
       .where(eq(employee.id, emp.id));
+  } else {
+    console.log(`[zalo:link] unfollow from=${zaloUserId} (no linked employee)`);
   }
 }
 
@@ -220,10 +270,21 @@ export async function handleUserInfo(
   zaloUserId: string,
   info: { name?: string; phone?: string },
 ) {
-  if (await findEmployee(zaloUserId)) return;
-  if (!info.phone) return say(zaloUserId, copy.askInviteCode);
+  if (await findEmployee(zaloUserId)) {
+    console.log(`[zalo:link] user_info from=${zaloUserId} already linked, ignored`);
+    return;
+  }
+  if (!info.phone) {
+    console.log(`[zalo:link] user_info from=${zaloUserId} no phone -> ask code`);
+    return say(zaloUserId, copy.askInviteCode);
+  }
 
   const res = await linking.linkByPhone(zaloUserId, info.phone);
+  console.log(
+    `[zalo:link] phone attempt from=${zaloUserId} phone=${info.phone} -> ${
+      res.ok ? `linked employee=${res.employeeId}` : `failed (${res.reason})`
+    }`,
+  );
   if (res.ok) {
     await setState(zaloUserId, "idle");
     await say(zaloUserId, copy.phoneLinkSuccess(res.name));
@@ -249,15 +310,35 @@ async function handleTaskAction(
   taskId: string,
 ) {
   const emp = await findEmployee(zaloUserId);
-  if (!emp) return say(zaloUserId, copy.notLinkedHint);
+  if (!emp) {
+    console.log(`[zalo:task] action=${action} from=${zaloUserId} not linked`);
+    return say(zaloUserId, copy.notLinkedHint);
+  }
 
   const t = await db.query.task.findFirst({ where: eq(task.id, taskId) });
-  if (!t) return say(zaloUserId, copy.noActiveTask);
-  if (t.assigneeId !== emp.id) return say(zaloUserId, copy.taskNotYours);
+  if (!t) {
+    console.log(`[zalo:task] action=${action} task=${taskId} not found`);
+    return say(zaloUserId, copy.noActiveTask);
+  }
+  if (t.assigneeId !== emp.id) {
+    console.log(
+      `[zalo:task] action=${action} task=${taskId} not assigned to employee=${emp.id}`,
+    );
+    return say(zaloUserId, copy.taskNotYours);
+  }
 
   // Zalo buttons live in the chat forever; refuse taps on a finished task
   // rather than resurrecting it.
-  if (isClosed(t.status)) return say(zaloUserId, copy.taskClosed);
+  if (isClosed(t.status)) {
+    console.log(
+      `[zalo:task] action=${action} task=${taskId} ignored: closed (${t.status})`,
+    );
+    return say(zaloUserId, copy.taskClosed);
+  }
+
+  console.log(
+    `[zalo:task] action=${action} task=${taskId} employee=${emp.id} status=${t.status}`,
+  );
 
   switch (action) {
     case "accept":
@@ -287,6 +368,11 @@ async function handleTaskAction(
 async function handleUnlinkedText(zaloUserId: string, text: string) {
   if (/^[A-Za-z0-9]{6}$/.test(text.trim())) {
     const res = await linking.linkByInviteCode(zaloUserId, text);
+    console.log(
+      `[zalo:link] code attempt from=${zaloUserId} code=${text.trim()} -> ${
+        res.ok ? `linked employee=${res.employeeId}` : `failed (${res.reason})`
+      }`,
+    );
     if (res.ok) {
       await setState(zaloUserId, "idle");
       return say(zaloUserId, copy.linkSuccess(res.name));
@@ -300,6 +386,7 @@ async function handleUnlinkedText(zaloUserId: string, text: string) {
           : copy.linkNotFound,
     );
   }
+  console.log(`[zalo:link] text from=${zaloUserId} is not a code -> hint`);
   return say(zaloUserId, copy.notLinkedHint);
 }
 
@@ -310,6 +397,9 @@ async function handleIdleText(
 ) {
   const open = await openTasksFor(emp.id);
   if (open.length === 1) {
+    console.log(
+      `[zalo:task] text comment task=${open[0].id} from=${emp.id} text="${preview(text)}"`,
+    );
     await tasks.addEmployeeComment({
       taskId: open[0].id,
       employeeId: emp.id,
@@ -317,5 +407,8 @@ async function handleIdleText(
     });
     return say(zaloUserId, copy.employeeCommentAck);
   }
+  console.log(
+    `[zalo:task] text from=${emp.id} not linked to a task (open=${open.length})`,
+  );
   return say(zaloUserId, open.length === 0 ? copy.noActiveTask : copy.help);
 }

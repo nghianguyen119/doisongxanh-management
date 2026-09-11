@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { zaloMessageLog } from "@/db/schema";
 import * as conversation from "@/lib/workflow/conversation";
+import { preview } from "./log";
 import type { InboundEvent, RawZaloWebhook } from "./types";
 
 /**
@@ -30,9 +31,14 @@ export async function dispatchInbound(event: InboundEvent): Promise<void> {
     .returning({ id: zaloMessageLog.id });
 
   if (!logged) {
-    console.warn("[zalo:dispatch] ignoring duplicate delivery", externalId);
+    console.warn(`[zalo:inbound] duplicate delivery ignored msg_id=${externalId}`);
     return;
   }
+
+  const started = Date.now();
+  console.log(
+    `[zalo:inbound] kind=${event.kind} from=${event.zaloUserId} ${describeEvent(event)}`,
+  );
 
   try {
     switch (event.kind) {
@@ -55,8 +61,13 @@ export async function dispatchInbound(event: InboundEvent): Promise<void> {
         });
         break;
     }
+    console.log(
+      `[zalo:inbound] handled kind=${event.kind} from=${event.zaloUserId} in ${Date.now() - started}ms`,
+    );
   } catch (err) {
-    console.error("[zalo:dispatch] handler error", event.kind, err);
+    console.error(
+      `[zalo:inbound] handler error kind=${event.kind} from=${event.zaloUserId}: ${preview(String(err))}`,
+    );
     await db.insert(zaloMessageLog).values({
       direction: "in",
       zaloUserId: event.zaloUserId,
@@ -64,6 +75,22 @@ export async function dispatchInbound(event: InboundEvent): Promise<void> {
       payload: { message: String(err) },
       error: String(err),
     });
+  }
+}
+
+/** One-line summary of a parsed inbound event. */
+function describeEvent(event: InboundEvent): string {
+  switch (event.kind) {
+    case "text":
+      return `text="${preview(event.text)}"`;
+    case "image":
+      return `images=${event.imageUrls.length} urls="${preview(event.imageUrls.join(" "), 200)}"`;
+    case "follow":
+      return "follow";
+    case "unfollow":
+      return "unfollow";
+    case "user_info":
+      return `user_info name="${preview(event.name ?? "")}" phone="${preview(event.phone ?? "")}"`;
   }
 }
 

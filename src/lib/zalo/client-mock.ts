@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, zaloMessageLog } from "@/db/schema";
 import type { ZaloClient } from "./client";
+import { preview } from "./log";
 import type { SendResult, ZaloButton, ZaloProfile } from "./types";
 
 /**
@@ -51,7 +52,9 @@ export class MockZaloClient implements ZaloClient {
       .insert(zaloMessageLog)
       .values({ direction: "out", zaloUserId, eventName, payload })
       .returning({ id: zaloMessageLog.id });
-    console.log(`[zalo:mock -> ${zaloUserId}] ${eventName}`, payload);
+    console.log(
+      `[zalo:send] <- mock ${eventName} to=${zaloUserId} payload=${preview(payload)}`,
+    );
     return { messageId: row.id };
   }
 }
