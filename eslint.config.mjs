@@ -15,8 +15,6 @@ const eslintConfig = defineConfig([
     // shadcn/ui generated files (base-nova registry):
     "src/components/ui/**",
     "src/hooks/use-mobile.ts",
-    // Vendored Kanban registry component (kept as installed):
-    "src/components/kanban/shadcn-studio/kanban.tsx",
   ]),
 ]);
 
