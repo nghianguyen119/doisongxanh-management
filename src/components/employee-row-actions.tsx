@@ -10,6 +10,7 @@ import {
   ProhibitIcon,
   TicketIcon,
 } from "@phosphor-icons/react"
+import { toast } from "sonner"
 
 import {
   generateInviteAction,
@@ -22,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { ActionResultState } from "@/lib/action-state"
 
 export function EmployeeRowActions({
   employeeId,
@@ -36,20 +38,34 @@ export function EmployeeRowActions({
   const [pending, startTransition] = React.useTransition()
 
   function run(
-    action: (formData: FormData) => Promise<void>,
+    action: (
+      prev: ActionResultState,
+      formData: FormData
+    ) => Promise<ActionResultState>,
     fields: Record<string, string>,
-    redirectTo?: string
+    opts: { loading: string; success: string; redirectTo?: string }
   ) {
     startTransition(async () => {
       const formData = new FormData()
       for (const [key, value] of Object.entries(fields)) {
         formData.set(key, value)
       }
-      await action(formData)
-      if (redirectTo) {
-        router.push(redirectTo)
-      } else {
-        router.refresh()
+      const id = `employee-row-${employeeId}`
+      toast.loading(opts.loading, { id })
+      try {
+        const result = await action(null, formData)
+        if (result?.error) {
+          toast.error(result.error, { id })
+          return
+        }
+        toast.success(opts.success, { id })
+        if (opts.redirectTo) {
+          router.push(opts.redirectTo)
+        } else {
+          router.refresh()
+        }
+      } catch {
+        toast.error("Không thực hiện được. Vui lòng thử lại.", { id })
       }
     })
   }
@@ -76,11 +92,11 @@ export function EmployeeRowActions({
         {!zaloLinked && (
           <DropdownMenuItem
             onClick={() =>
-              run(
-                generateInviteAction,
-                { employeeId },
-                `/employees/${employeeId}`
-              )
+              run(generateInviteAction, { employeeId }, {
+                loading: "Đang tạo mã mời…",
+                success: "Đã tạo mã mời",
+                redirectTo: `/employees/${employeeId}`,
+              })
             }
           >
             <TicketIcon />
@@ -90,10 +106,11 @@ export function EmployeeRowActions({
         {status === "active" ? (
           <DropdownMenuItem
             onClick={() =>
-              run(setEmployeeStatusAction, {
-                employeeId,
-                status: "inactive",
-              })
+              run(
+                setEmployeeStatusAction,
+                { employeeId, status: "inactive" },
+                { loading: "Đang cập nhật…", success: "Đã ngừng hoạt động" }
+              )
             }
           >
             <ProhibitIcon />
@@ -102,7 +119,11 @@ export function EmployeeRowActions({
         ) : (
           <DropdownMenuItem
             onClick={() =>
-              run(setEmployeeStatusAction, { employeeId, status: "active" })
+              run(
+                setEmployeeStatusAction,
+                { employeeId, status: "active" },
+                { loading: "Đang cập nhật…", success: "Đã kích hoạt" }
+              )
             }
           >
             <PowerIcon />

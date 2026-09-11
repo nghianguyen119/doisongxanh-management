@@ -33,8 +33,10 @@ test.describe("employees", () => {
     await drawer.getByLabel("Tên").fill(e2eName("badphone"));
     await drawer.getByLabel("Số điện thoại").fill("01239123");
     await drawer.getByRole("button", { name: "Thêm nhân viên" }).click();
-    await expect(page.getByText("Không thực hiện được")).toBeVisible();
-    await expect(page.getByText(/không hợp lệ/)).toBeVisible();
+    // The message is rendered inline; production redacts thrown action errors.
+    await expect(drawer.getByText(/không hợp lệ/)).toBeVisible();
+    await expect(page.getByText("Không thực hiện được")).toHaveCount(0);
+    await expect(drawer).toBeVisible();
   });
 
   test("rejects a duplicate phone", async ({ page }) => {
@@ -46,7 +48,10 @@ test.describe("employees", () => {
     await drawer.getByLabel("Tên").fill(e2eName("dup-b"));
     await drawer.getByLabel("Số điện thoại").fill(phone);
     await drawer.getByRole("button", { name: "Thêm nhân viên" }).click();
-    await expect(page.getByText(/đã thuộc về nhân viên khác/)).toBeVisible();
+    await expect(
+      drawer.getByText(/đã thuộc về nhân viên khác/)
+    ).toBeVisible();
+    await expect(page.getByText("Không thực hiện được")).toHaveCount(0);
   });
 
   test("edits the profile and persists it", async ({ page }) => {
