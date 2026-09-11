@@ -54,6 +54,7 @@ the bot sends back.
 ## Going live with a real Zalo OA
 
 Full credential/webhook/token runbook: **[docs/zalo-oa-setup.md](docs/zalo-oa-setup.md)**.
+Manager-facing guide (Vietnamese): **[docs/huong-dan-su-dung-zalo.md](docs/huong-dan-su-dung-zalo.md)**.
 
 1. Create an app + Official Account at <https://developers.zalo.me>. Add the
    **Official Account API** product.
