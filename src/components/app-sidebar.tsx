@@ -3,12 +3,12 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  LayoutDashboardIcon,
+  SquaresFourIcon,
   ListChecksIcon,
   UsersIcon,
-  MessageSquareIcon,
+  ChatCircleIcon,
   LeafIcon,
-} from "lucide-react"
+} from "@phosphor-icons/react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -27,7 +27,7 @@ const NAV_MAIN = [
   {
     title: "Tổng quan",
     url: "/dashboard",
-    icon: <LayoutDashboardIcon />,
+    icon: <SquaresFourIcon />,
   },
   {
     title: "Công việc",
@@ -45,7 +45,7 @@ const NAV_SECONDARY = [
   {
     title: "Zalo OA",
     url: "/settings/zalo",
-    icon: <MessageSquareIcon />,
+    icon: <ChatCircleIcon />,
   },
 ]
 

@@ -1,9 +1,11 @@
+"use client"
+
 import {
-  ListTodoIcon,
-  TriangleAlertIcon,
-  HourglassIcon,
-  BadgeCheckIcon,
-} from "lucide-react"
+  ListChecksIcon,
+  WarningIcon,
+  HourglassMediumIcon,
+  SealCheckIcon,
+} from "@phosphor-icons/react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -35,7 +37,7 @@ export function SectionCards({ stats }: { stats: SectionCardsStats }) {
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <ListTodoIcon />
+              <ListChecksIcon />
             </Badge>
           </CardAction>
         </CardHeader>
@@ -58,12 +60,12 @@ export function SectionCards({ stats }: { stats: SectionCardsStats }) {
           <CardAction>
             {stats.overdue > 0 ? (
               <Badge variant="destructive">
-                <TriangleAlertIcon />
+                <WarningIcon />
                 Cần xử lý
               </Badge>
             ) : (
               <Badge variant="outline">
-                <BadgeCheckIcon />
+                <SealCheckIcon />
               </Badge>
             )}
           </CardAction>
@@ -86,7 +88,7 @@ export function SectionCards({ stats }: { stats: SectionCardsStats }) {
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <HourglassIcon />
+              <HourglassMediumIcon />
             </Badge>
           </CardAction>
         </CardHeader>
@@ -108,7 +110,7 @@ export function SectionCards({ stats }: { stats: SectionCardsStats }) {
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <BadgeCheckIcon />
+              <SealCheckIcon />
             </Badge>
           </CardAction>
         </CardHeader>

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CirclePlusIcon } from "lucide-react"
+import { PlusCircleIcon } from "@phosphor-icons/react"
 
 import {
   SidebarGroup,
@@ -33,7 +33,7 @@ export function NavMain({
               className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
               render={<Link href="/tasks/new" />}
             >
-              <CirclePlusIcon />
+              <PlusCircleIcon />
               <span>Tạo công việc</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
