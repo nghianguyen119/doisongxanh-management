@@ -37,6 +37,7 @@ import { PageHeader, inputClass } from "@/components/ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DateTimePicker } from "@/components/date-time-picker";
 import {
   Collapsible,
   CollapsibleContent,
@@ -380,12 +381,10 @@ export default async function TaskDetailPage({
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="edit-dueAt">Hạn hoàn thành</FieldLabel>
-                    <input
+                    <DateTimePicker
                       id="edit-dueAt"
-                      type="datetime-local"
                       name="dueAt"
                       defaultValue={toVNInputValue(t.dueAt)}
-                      className={inputClass}
                     />
                     <FieldDescription>Giờ Việt Nam.</FieldDescription>
                   </Field>

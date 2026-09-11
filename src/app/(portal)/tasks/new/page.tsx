@@ -4,6 +4,7 @@ import { createTaskAction } from "@/lib/actions/tasks";
 import { PageHeader, inputClass } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DateTimePicker } from "@/components/date-time-picker";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { EMPLOYEE_STATUS_LABEL } from "@/lib/labels";
 
@@ -51,12 +52,7 @@ export default async function NewTaskPage() {
             </Field>
             <Field>
               <FieldLabel htmlFor="dueAt">Hạn hoàn thành</FieldLabel>
-              <input
-                id="dueAt"
-                type="datetime-local"
-                name="dueAt"
-                className={inputClass}
-              />
+              <DateTimePicker id="dueAt" name="dueAt" />
               <FieldDescription>Giờ Việt Nam.</FieldDescription>
             </Field>
           </div>
