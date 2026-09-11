@@ -4,6 +4,10 @@ import { employee, task, taskAttachment, taskEvent } from "@/db/schema";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import type { TaskCardInput } from "./bot-copy";
 import * as notify from "./notification-service";
+import type {
+  NotificationKind,
+  NotifyResult,
+} from "./notification-service";
 import { statusesAllowedToReach, canTransition, isClosed, type TaskStatus } from "./task-status";
 
 type TaskRow = typeof task.$inferSelect;
@@ -59,6 +63,27 @@ async function logEvent(
     .values({ taskId, type, actorType: actor.type, actorId: actor.id, payload })
     .returning({ id: taskEvent.id });
   return row.id;
+}
+
+/**
+ * Best-effort Zalo send whose outcome becomes a `notification` task_event.
+ * Zalo delivery is not guaranteed (7-day window, blocked OA, outage), so the
+ * timeline must show whether the message actually reached the employee.
+ */
+async function notifyEmployee(
+  taskId: string,
+  kind: NotificationKind,
+  zaloUserId: string | null,
+  send: (zid: string) => Promise<NotifyResult>,
+) {
+  const res = zaloUserId
+    ? await send(zaloUserId)
+    : { ok: false as const, error: "not_linked" };
+  await logEvent(taskId, "notification", { type: "system", id: null }, {
+    kind,
+    ok: res.ok,
+    error: res.ok ? null : res.error,
+  });
 }
 
 /**
@@ -174,9 +199,10 @@ export async function updateTask(input: {
   });
 
   // Tell the employee only when something they act on actually moved.
-  const zid = await assigneeZaloId(row);
-  if (zid && changed.some((k) => k !== "description")) {
-    await notify.notifyUpdated(toCard(row), zid);
+  if (changed.some((k) => k !== "description")) {
+    await notifyEmployee(input.taskId, "updated", await assigneeZaloId(row), (z) =>
+      notify.notifyUpdated(toCard(row), z),
+    );
   }
   return { ok: true, task: row };
 }
@@ -207,15 +233,12 @@ export async function assignTask(input: {
     assigneeId: input.assigneeId,
   });
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) {
-    const sent = await notify.notifyAssigned(toCard(res.task), zid);
-    if (sent) {
-      await logEvent(input.taskId, "reminder_sent", { type: "system", id: null }, {
-        kind: "assigned",
-      });
-    }
-  }
+  await notifyEmployee(
+    input.taskId,
+    "assigned",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyAssigned(toCard(res.task), z),
+  );
   return res;
 }
 
@@ -253,8 +276,12 @@ export async function verifyTask(input: {
     id: input.actorId,
   }, { to: "verified" });
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyVerified(zid);
+  await notifyEmployee(
+    input.taskId,
+    "verified",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyVerified(z),
+  );
   return res;
 }
 
@@ -271,8 +298,12 @@ export async function cancelTask(input: {
     id: input.actorId,
   }, { to: "cancelled", reason: input.reason ?? null });
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyCancelled(zid);
+  await notifyEmployee(
+    input.taskId,
+    "cancelled",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyCancelled(z),
+  );
   return res;
 }
 
@@ -288,8 +319,12 @@ export async function addManagerComment(input: {
     text: input.text,
   });
 
-  const zid = await assigneeZaloId(t);
-  if (zid) await notify.forwardManagerComment(zid, input.text);
+  await notifyEmployee(
+    input.taskId,
+    "comment",
+    await assigneeZaloId(t),
+    (z) => notify.forwardManagerComment(z, input.text),
+  );
   return { ok: true, task: t };
 }
 
@@ -367,8 +402,12 @@ export async function acceptTask(input: {
     id: input.employeeId,
   }, { to: "accepted" });
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyAccepted(toCard(res.task), zid);
+  await notifyEmployee(
+    input.taskId,
+    "accepted",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyAccepted(toCard(res.task), z),
+  );
   return res;
 }
 
@@ -384,8 +423,12 @@ export async function startTask(input: {
     id: input.employeeId,
   }, { to: "in_progress" });
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyStarted(toCard(res.task), zid);
+  await notifyEmployee(
+    input.taskId,
+    "started",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyStarted(toCard(res.task), z),
+  );
   return res;
 }
 
@@ -405,8 +448,12 @@ export async function completeTask(input: {
 
   await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyDoneAck(zid);
+  await notifyEmployee(
+    input.taskId,
+    "done",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyDoneAck(z),
+  );
   return res;
 }
 
@@ -426,8 +473,12 @@ export async function reportIssue(input: {
 
   await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
-  const zid = await assigneeZaloId(res.task);
-  if (zid) await notify.notifyIssueAck(zid);
+  await notifyEmployee(
+    input.taskId,
+    "issue",
+    await assigneeZaloId(res.task),
+    (z) => notify.notifyIssueAck(z),
+  );
   return res;
 }
 

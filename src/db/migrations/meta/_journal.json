@@ -15,6 +15,13 @@
       "when": 1789117191703,
       "tag": "0001_medical_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789156422041,
+      "tag": "0002_goofy_dazzler",
+      "breakpoints": true
     }
   ]
 }

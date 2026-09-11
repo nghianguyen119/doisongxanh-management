@@ -4,6 +4,7 @@ import type {
   taskPriority,
   taskStatus,
 } from "@/db/schema";
+import type { NotificationKind } from "@/lib/workflow/notification-service";
 
 type TaskStatus = (typeof taskStatus.enumValues)[number];
 type TaskPriority = (typeof taskPriority.enumValues)[number];
@@ -60,6 +61,20 @@ export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
   issue_reported: "Báo sự cố",
   attachment_added: "Đính kèm ảnh",
   reminder_sent: "Đã gửi Zalo",
+  notification: "Thông báo Zalo",
+};
+
+export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
+  assigned: "Giao việc",
+  updated: "Cập nhật công việc",
+  accepted: "Xác nhận nhận việc",
+  started: "Xác nhận bắt đầu",
+  done: "Báo hoàn thành",
+  issue: "Báo sự cố",
+  verified: "Duyệt hoàn thành",
+  cancelled: "Huỷ công việc",
+  comment: "Lời nhắn cho nhân viên",
+  reminder: "Nhắc hạn",
 };
 
 export const OPEN_TASK_STATUSES: TaskStatus[] = [

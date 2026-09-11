@@ -67,23 +67,32 @@ async function handle(req: NextRequest) {
   let sent = 0;
   for (const row of due) {
     const overdue = !!row.task.dueAt && row.task.dueAt.getTime() < now;
-    const ok = await sendReminder(
+    const res = await sendReminder(
       taskToCard(row.task),
       row.zaloUserId!,
       overdue,
     );
-    if (!ok) continue;
+
+    // Record the outcome either way: a failed reminder keeps the task in the
+    // candidate set, so the manager must be able to see it is not reaching
+    // the employee.
+    await db.insert(taskEvent).values({
+      taskId: row.task.id,
+      type: "notification",
+      actorType: "system",
+      payload: {
+        kind: "reminder",
+        ok: res.ok,
+        error: res.ok ? null : res.error,
+        overdue,
+      },
+    });
+    if (!res.ok) continue;
 
     await db
       .update(task)
       .set({ lastRemindedAt: new Date() })
       .where(eq(task.id, row.task.id));
-    await db.insert(taskEvent).values({
-      taskId: row.task.id,
-      type: "reminder_sent",
-      actorType: "system",
-      payload: { kind: overdue ? "overdue" : "due_soon" },
-    });
     sent++;
   }
 

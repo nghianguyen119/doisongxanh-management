@@ -7,18 +7,36 @@ import { BTN, copy, taskCardText, type TaskCardInput } from "./bot-copy";
  * task_event row.
  *
  * Sends are best-effort — a Zalo outage must not roll back a DB change that
- * already happened — so every function returns whether the message actually
- * went out rather than throwing. Callers use that to avoid recording a
- * "reminder_sent" event for a message that failed.
+ * already happened — so every function returns the outcome instead of
+ * throwing. Callers log it as a `notification` task_event so the timeline
+ * shows whether each message actually went out.
  */
 
-async function safe(p: Promise<unknown>): Promise<boolean> {
+/** What the message was about, for the timeline label. */
+export type NotificationKind =
+  | "assigned"
+  | "updated"
+  | "accepted"
+  | "started"
+  | "done"
+  | "issue"
+  | "verified"
+  | "cancelled"
+  | "comment"
+  | "reminder";
+
+export type NotifyResult = { ok: true } | { ok: false; error: string };
+
+async function safe(p: Promise<unknown>): Promise<NotifyResult> {
   try {
     await p;
-    return true;
+    return { ok: true };
   } catch (err) {
     console.error("[notification] send failed", err);
-    return false;
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 

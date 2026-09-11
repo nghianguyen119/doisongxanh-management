@@ -10,6 +10,7 @@ import {
   ChatCircleIcon,
   ClockIcon,
   PaperclipIcon,
+  PaperPlaneTiltIcon,
   PencilSimpleIcon,
   PlusCircleIcon,
   UserPlusIcon,
@@ -20,6 +21,7 @@ import { getTaskDetail, listActiveEmployeesForSelect } from "@/lib/queries";
 import { taskPriority } from "@/db/schema";
 import { isClosed } from "@/lib/workflow/task-status";
 import {
+  NOTIFICATION_KIND_LABEL,
   TASK_EVENT_LABEL,
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
@@ -64,6 +66,8 @@ function EventIcon({ type }: { type: keyof typeof TASK_EVENT_LABEL }) {
       return <PaperclipIcon className={className} />;
     case "reminder_sent":
       return <BellIcon className={className} />;
+    case "notification":
+      return <PaperPlaneTiltIcon className={className} />;
     default:
       return <ClockIcon className={className} />;
   }
@@ -123,10 +127,21 @@ export default async function TaskDetailPage({
                     to?: string;
                     note?: string;
                     reason?: string;
+                    kind?: string;
+                    ok?: boolean;
+                    error?: string | null;
                   };
+                  const failedNotification =
+                    e.type === "notification" && payload.ok === false;
                   return (
                     <li key={e.id} className="relative text-sm">
-                      <span className="absolute top-0.5 -left-[1.65rem] flex size-5 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                      <span
+                        className={`absolute top-0.5 -left-[1.65rem] flex size-5 items-center justify-center rounded-full border bg-background ${
+                          failedNotification
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        }`}
+                      >
                         <EventIcon type={e.type} />
                       </span>
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -146,6 +161,30 @@ export default async function TaskDetailPage({
                       <div className="text-xs text-muted-foreground">
                         {actorLabel(e.actorType, e.actorId)}
                       </div>
+                      {e.type === "notification" && (
+                        <div className="mt-1 space-y-0.5 text-xs break-words">
+                          {payload.kind && (
+                            <div className="text-muted-foreground">
+                              {NOTIFICATION_KIND_LABEL[
+                                payload.kind as keyof typeof NOTIFICATION_KIND_LABEL
+                              ] ?? payload.kind}
+                            </div>
+                          )}
+                          <div
+                            className={
+                              payload.ok ? "text-emerald-700" : "text-destructive"
+                            }
+                          >
+                            {payload.ok
+                              ? "Đã gửi Zalo"
+                              : `Gửi Zalo thất bại: ${
+                                  payload.error === "not_linked"
+                                    ? "nhân viên chưa kết nối Zalo"
+                                    : (payload.error ?? "không rõ nguyên nhân")
+                                }`}
+                          </div>
+                        </div>
+                      )}
                       {payload.to && (
                         <div className="mt-1">
                           →{" "}

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."task_event_type" ADD VALUE 'notification';

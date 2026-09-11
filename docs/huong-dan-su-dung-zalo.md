@@ -143,8 +143,9 @@ Nếu có nhiều việc, bot sẽ nhắc dùng nút trên thẻ công việc.
 - **Bảng tiến độ** (Kanban) — kéo thả thẻ giữa các cột để đổi trạng thái; kéo
   thẻ về *Mới tạo* để bỏ giao. Việc đã **Đã xác nhận/Đã huỷ** bị khoá, không
   kéo được nữa.
-- **Chi tiết công việc** — *Diễn tiến* (mọi bước, ai làm, khi nào), ảnh đính
-  kèm, ô **Gửi lời nhắn cho nhân viên** (gửi thẳng qua Zalo), **Giao lại**,
+- **Chi tiết công việc** — *Diễn tiến* (mọi bước, ai làm, khi nào; mỗi thông
+  báo Zalo ghi rõ **đã gửi** hay **gửi thất bại** kèm lý do), ảnh đính kèm, ô
+  **Gửi lời nhắn cho nhân viên** (gửi thẳng qua Zalo), **Giao lại**,
   **Xác nhận hoàn thành**, **Huỷ công việc**, **Sửa nội dung**.
 - **Tổng quan** — số việc đang mở/quá hạn/chờ xác nhận và hoạt động gần đây.
 - **Zalo OA** — trạng thái OA, nhân viên đã kết nối, khung **Tin nhắn khách

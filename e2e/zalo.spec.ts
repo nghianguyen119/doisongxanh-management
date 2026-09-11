@@ -162,6 +162,10 @@ test.describe("task lifecycle over Zalo", () => {
     await expect(
       page.locator("main main").getByText("Đã xong", { exact: true }).first()
     ).toBeVisible();
+
+    // Every Zalo message is recorded with its delivery state.
+    await expect(page.getByText("Thông báo Zalo").first()).toBeVisible();
+    await expect(page.getByText("Đã gửi Zalo").first()).toBeVisible();
     await page.getByRole("button", { name: "Xác nhận hoàn thành" }).click();
     await expect(
       page.locator("main main").getByText("Đã xác nhận", { exact: true }).first()
@@ -174,5 +178,25 @@ test.describe("task lifecycle over Zalo", () => {
     await expect(
       page.getByRole("button", { name: "Huỷ công việc" })
     ).toHaveCount(0);
+  });
+
+  test("records a failed delivery when the employee is not linked", async ({
+    page,
+  }) => {
+    const employeeId = await createEmployeeViaUi(page, {
+      name: e2eName("nolink"),
+      phone: e2ePhone(),
+    });
+
+    // Assigning to an invited employee is allowed, but there is no Zalo id,
+    // so the timeline must say the notification never went out.
+    await createTaskViaUi(page, {
+      title: e2eTitle("nolink"),
+      assigneeId: employeeId,
+    });
+
+    await expect(page.getByText("Thông báo Zalo").first()).toBeVisible();
+    await expect(page.getByText(/Gửi Zalo thất bại/).first()).toBeVisible();
+    await expect(page.getByText(/chưa kết nối Zalo/).first()).toBeVisible();
   });
 });

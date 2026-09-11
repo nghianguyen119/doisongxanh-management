@@ -33,6 +33,7 @@ export const taskEventType = pgEnum("task_event_type", [
   "issue_reported",
   "attachment_added",
   "reminder_sent",
+  "notification",
 ]);
 
 export const actorType = pgEnum("actor_type", ["manager", "employee", "system"]);
