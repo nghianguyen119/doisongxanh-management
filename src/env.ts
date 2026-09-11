@@ -1,5 +1,6 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
+import { parseManagerEmails } from "@/lib/manager-emails";
 
 /**
  * Validated environment variables. Import from here instead of reading
@@ -59,10 +60,9 @@ export const env = createEnv({
 });
 
 /** Manager emails allowed into the portal, normalised to lowercase. */
-export const allowedManagerEmails = (env.ALLOWED_MANAGER_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+export const allowedManagerEmails = parseManagerEmails(
+  env.ALLOWED_MANAGER_EMAILS ?? "",
+);
 
 /**
  * An empty allowlist means "any Google account", which is only acceptable
