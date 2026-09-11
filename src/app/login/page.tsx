@@ -14,13 +14,13 @@ export default async function LoginPage({
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         <div className="text-3xl">🌿</div>
         <h1 className="mt-3 text-lg font-semibold">Đời Sống Xanh</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           Cổng quản lý công việc dành cho quản lý.
         </p>
         <div className="mt-6">
           <LoginButton next={target} />
         </div>
-        <p className="mt-4 text-xs text-muted">
+        <p className="mt-4 text-xs text-muted-foreground">
           Chỉ các tài khoản Google được cấp quyền mới đăng nhập được.
         </p>
       </div>

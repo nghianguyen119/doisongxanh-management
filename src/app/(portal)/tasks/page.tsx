@@ -81,7 +81,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-muted">
+            <thead className="border-b border-border text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 font-medium">Công việc</th>
                 <th className="px-4 py-2 font-medium">Nhân viên</th>

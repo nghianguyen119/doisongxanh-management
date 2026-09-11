@@ -62,7 +62,7 @@ export default async function TaskDetailPage({
                 };
                 return (
                   <li key={e.id} className="text-sm">
-                    <div className="text-xs text-muted">
+                    <div className="text-xs text-muted-foreground">
                       {formatVN(e.createdAt)} ·{" "}
                       {actorLabel(e.actorType, e.actorId)} ·{" "}
                       {TASK_EVENT_LABEL[e.type]}
@@ -124,7 +124,7 @@ export default async function TaskDetailPage({
                 <Button type="submit">Gửi</Button>
               </form>
             ) : (
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted-foreground">
                 Nhân viên chưa kết nối Zalo nên chưa gửi được lời nhắn.
               </p>
             )}
@@ -135,15 +135,15 @@ export default async function TaskDetailPage({
           <Card>
             <dl className="space-y-2 text-sm">
               <div>
-                <dt className="text-muted">Nhân viên</dt>
+                <dt className="text-muted-foreground">Nhân viên</dt>
                 <dd>{t.assignee?.name ?? "Chưa giao"}</dd>
               </div>
               <div>
-                <dt className="text-muted">Ưu tiên</dt>
+                <dt className="text-muted-foreground">Ưu tiên</dt>
                 <dd>{TASK_PRIORITY_LABEL[t.priority]}</dd>
               </div>
               <div>
-                <dt className="text-muted">Hạn</dt>
+                <dt className="text-muted-foreground">Hạn</dt>
                 <dd>
                   {t.dueAt ? formatVN(t.dueAt) : "Không có"}
                 </dd>

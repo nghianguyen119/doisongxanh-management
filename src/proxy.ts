@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import { isDevAuthBypassed } from "@/env";
 
 /**
  * Next.js 16 renamed `middleware` -> `proxy` (nodejs runtime, not edge).
@@ -12,6 +13,10 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return NextResponse.next();
+  }
+
+  if (isDevAuthBypassed()) {
     return NextResponse.next();
   }
 

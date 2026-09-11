@@ -59,7 +59,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
       <h2 className="mb-3 font-semibold">Mô phỏng Zalo (điện thoại nhân viên)</h2>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted">Zalo user:</span>
+        <span className="text-muted-foreground">Zalo user:</span>
         <select
           value={zaloUserId}
           onChange={(e) => setZaloUserId(e.target.value)}
@@ -84,7 +84,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
 
       <div className="mb-3 h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-background p-3">
         {thread.length === 0 && (
-          <p className="text-sm text-muted">Chưa có tin nhắn.</p>
+          <p className="text-sm text-muted-foreground">Chưa có tin nhắn.</p>
         )}
         {thread.map((row) => (
           <div
@@ -99,7 +99,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
               {renderPayload(row)}
             </div>
             <div
-              className={`mt-1 text-[10px] ${row.direction === "out" ? "text-primary-foreground/70" : "text-muted"}`}
+              className={`mt-1 text-[10px] ${row.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
             >
               {row.direction === "out" ? "OA →" : "→ OA"} · {row.eventName}
             </div>

@@ -26,13 +26,13 @@ export default async function ZaloSettingsPage() {
           <h2 className="mb-2 font-semibold">Cấu hình</h2>
           <dl className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <dt className="text-muted">Chế độ</dt>
+              <dt className="text-muted-foreground">Chế độ</dt>
               <dd className="font-medium">
                 {env.ZALO_TRANSPORT === "live" ? "Thật (live)" : "Mô phỏng (mock)"}
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted">Access token</dt>
+              <dt className="text-muted-foreground">Access token</dt>
               <dd>
                 {token
                   ? `hết hạn ${token.expiresAt.toLocaleString("vi-VN")}`
@@ -48,13 +48,13 @@ export default async function ZaloSettingsPage() {
         <Card>
           <h2 className="mb-2 font-semibold">Nhân viên đã kết nối</h2>
           {linked.length === 0 ? (
-            <p className="text-sm text-muted">Chưa có ai.</p>
+            <p className="text-sm text-muted-foreground">Chưa có ai.</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {linked.map((e) => (
                 <li key={e.id} className="flex justify-between">
                   <span>{e.name}</span>
-                  <span className="font-mono text-xs text-muted">
+                  <span className="font-mono text-xs text-muted-foreground">
                     {e.zaloUserId}
                   </span>
                 </li>
@@ -75,7 +75,7 @@ export default async function ZaloSettingsPage() {
           />
         </div>
       ) : (
-        <Card className="mt-6 text-sm text-muted">
+        <Card className="mt-6 text-sm text-muted-foreground">
           Công cụ mô phỏng chỉ hoạt động khi <code>ZALO_TRANSPORT=mock</code> và
           không chạy ở chế độ production.
         </Card>

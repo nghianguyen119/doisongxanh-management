@@ -18,7 +18,7 @@ export default function PortalError({
     <Card className="mx-auto max-w-md text-center">
       <div className="text-3xl">⚠️</div>
       <h2 className="mt-2 font-semibold">Không thực hiện được</h2>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         {error.message || "Đã có lỗi xảy ra. Vui lòng thử lại."}
       </p>
       <Button className="mt-4" onClick={reset}>

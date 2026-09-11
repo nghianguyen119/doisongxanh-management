@@ -24,7 +24,7 @@ export default async function EmployeesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-muted">
+            <thead className="border-b border-border text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 font-medium">Tên</th>
                 <th className="px-4 py-2 font-medium">SĐT</th>
@@ -44,7 +44,7 @@ export default async function EmployeesPage() {
                       {e.name}
                     </Link>
                     {e.position && (
-                      <span className="block text-xs text-muted">
+                      <span className="block text-xs text-muted-foreground">
                         {e.position}
                       </span>
                     )}

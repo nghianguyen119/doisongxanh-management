@@ -36,12 +36,12 @@ export default async function EmployeeDetailPage({
           {e.zaloUserId ? (
             <p className="text-sm">
               ✅ Đã kết nối
-              <span className="block text-xs text-muted">
+              <span className="block text-xs text-muted-foreground">
                 Zalo user id: {e.zaloUserId}
               </span>
             </p>
           ) : (
-            <p className="text-sm text-muted">Chưa kết nối.</p>
+            <p className="text-sm text-muted-foreground">Chưa kết nối.</p>
           )}
 
           <div className="border-t border-border pt-3">
@@ -49,7 +49,7 @@ export default async function EmployeeDetailPage({
             {activeInvite ? (
               <p className="text-sm">
                 Mã: <span className="font-mono text-base">{activeInvite.code}</span>
-                <span className="block text-xs text-muted">
+                <span className="block text-xs text-muted-foreground">
                   Hết hạn {formatVN(activeInvite.expiresAt)}.
                   Nhân viên gửi mã này cho Zalo OA.
                 </span>
@@ -66,7 +66,7 @@ export default async function EmployeeDetailPage({
 
           <div className="border-t border-border pt-3">
             <p className="mb-1 text-sm font-medium">Cách 2 · Chia sẻ SĐT</p>
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               Nhân viên nhắn cho OA và bấm “chia sẻ số điện thoại”. Hệ thống khớp
               với SĐT {e.phone ? <b>{e.phone}</b> : "(chưa có — hãy cập nhật)"}.
             </p>
@@ -110,7 +110,7 @@ export default async function EmployeeDetailPage({
         <Card>
           <h2 className="mb-3 font-semibold">Công việc</h2>
           {tasks.length === 0 ? (
-            <p className="text-sm text-muted">Chưa có công việc nào.</p>
+            <p className="text-sm text-muted-foreground">Chưa có công việc nào.</p>
           ) : (
             <ul className="divide-y divide-border">
               {tasks.map((t) => (

@@ -38,7 +38,7 @@ export function PageHeader({
       <div>
         <h1 className="text-xl font-semibold">{title}</h1>
         {description && (
-          <p className="mt-1 text-sm text-muted">{description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {action}
@@ -126,7 +126,7 @@ export function Field({
     <label className="block">
       <span className="mb-1 block text-sm font-medium">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
 }
@@ -136,7 +136,7 @@ export const inputClass =
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted">
+    <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
       {children}
     </div>
   );

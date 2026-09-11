@@ -25,6 +25,13 @@ export const env = createEnv({
 
     /** Bearer token guarding /api/cron/reminders. Unset = endpoint disabled. */
     CRON_SECRET: z.string().optional().default(""),
+
+    /**
+     * "true" opens the manager portal without sign-in. Requires
+     * NODE_ENV != "production" and a fake admin user is assumed. Never
+     * enabled in production, even if the flag slips through.
+     */
+    AUTH_BYPASS: z.string().optional().default("false"),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -43,6 +50,7 @@ export const env = createEnv({
     ZALO_OA_ACCESS_TOKEN: process.env.ZALO_OA_ACCESS_TOKEN,
     ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
     CRON_SECRET: process.env.CRON_SECRET,
+    AUTH_BYPASS: process.env.AUTH_BYPASS,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
   emptyStringAsUndefined: false,
@@ -73,4 +81,12 @@ export function isManagerEmailAllowed(email: string): boolean {
  */
 export function isSimulatorEnabled(): boolean {
   return env.ZALO_TRANSPORT === "mock" && process.env.NODE_ENV !== "production";
+}
+
+/**
+ * AUTH_BYPASS lets the portal be browsed without a session in dev. Requires
+ * a non-production build so the flag can never unlock production.
+ */
+export function isDevAuthBypassed(): boolean {
+  return env.AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
 }

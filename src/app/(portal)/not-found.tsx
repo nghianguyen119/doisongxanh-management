@@ -5,7 +5,7 @@ export default function PortalNotFound() {
     <div className="mx-auto max-w-md text-center">
       <div className="text-3xl">🔎</div>
       <h2 className="mt-2 font-semibold">Không tìm thấy</h2>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         Nội dung bạn tìm không tồn tại hoặc đã bị xoá.
       </p>
       <div className="mt-4">
