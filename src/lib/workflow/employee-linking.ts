@@ -4,7 +4,14 @@ import { db } from "@/db";
 import { employee, employeeInvite } from "@/db/schema";
 import { getZaloClient } from "@/lib/zalo/factory";
 
-const makeCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
+/**
+ * Invite codes are 4 Vietnamese consonants. F, J, W, Z are dropped (they are
+ * not in the Vietnamese alphabet), as are vowels and digits, so a code never
+ * reads as a word and is unambiguous when read aloud over the phone.
+ */
+const CONSONANTS = "BCDGHKLMNPQRSTVX";
+const INVITE_CODE_RE = new RegExp(`[${CONSONANTS}]{4}`, "i");
+const makeCode = customAlphabet(CONSONANTS, 4);
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Consumed invites are useful as history for a while, then cleaned up. */
 const CONSUMED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -33,6 +40,16 @@ export function parsePhone(input: string | null | undefined): string | null {
   if (!input) return null;
   const normalized = normalizePhone(input);
   return normalized && isValidPhone(normalized) ? normalized : null;
+}
+
+/**
+ * Finds an invite code anywhere in a free-form message, so an employee can
+ * write "mã của tôi là BCDF" instead of sending the code on its own.
+ * Returns the upper-cased code, or null when there is no match.
+ */
+export function parseInviteCode(text: string): string | null {
+  const match = INVITE_CODE_RE.exec(text);
+  return match ? match[0].toUpperCase() : null;
 }
 
 export async function generateInvite(
@@ -97,21 +114,6 @@ export async function linkByInviteCode(
     .where(eq(employeeInvite.id, invite.id));
 
   return { ok: true, employeeId: invite.employeeId, name: invite.employee.name };
-}
-
-export async function linkByPhone(
-  zaloUserId: string,
-  rawPhone: string,
-): Promise<LinkResult> {
-  const phone = normalizePhone(rawPhone);
-  const emp = await db.query.employee.findFirst({
-    where: and(eq(employee.phone, phone), isNull(employee.zaloUserId)),
-  });
-  if (!emp) return { ok: false, reason: "not_found" };
-  if (emp.status === "inactive") return { ok: false, reason: "inactive" };
-
-  await finalizeLink(emp.id, zaloUserId);
-  return { ok: true, employeeId: emp.id, name: emp.name };
 }
 
 /** Portal action: manager pastes a Zalo user id onto an employee record. */

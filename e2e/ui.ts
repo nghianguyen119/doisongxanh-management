@@ -46,7 +46,7 @@ export async function simulatorOpen(page: Page, zaloUserId: string) {
 }
 
 export async function simulatorSendText(page: Page, text: string) {
-  await page.getByPlaceholder("Nhập tin nhắn của nhân viên…").fill(text);
+  await page.getByPlaceholder("Nhập tin nhắn…").fill(text);
   await page.getByRole("button", { name: "Gửi", exact: true }).click();
 }
 

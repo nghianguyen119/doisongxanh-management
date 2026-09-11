@@ -6,6 +6,7 @@ import { getZaloClient } from "@/lib/zalo/factory";
 import { preview } from "@/lib/zalo/log";
 import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
 import { copy } from "./bot-copy";
+import * as clients from "./client-conversation";
 import * as linking from "./employee-linking";
 import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
@@ -108,11 +109,13 @@ async function reportFailure(zaloUserId: string, res: TaskResult) {
 // ---------------------------------------------------------------------------
 
 export async function handleInboundText(zaloUserId: string, text: string) {
-  const button = BUTTON_PAYLOAD.decode(text);
-  if (button) return handleTaskAction(zaloUserId, button.action, button.taskId);
-
+  // Linked employee vs anyone else (customer) is decided by the employee
+  // lookup only. An unlinked user must never be assumed to be an employee.
   const emp = await findEmployee(zaloUserId);
   if (!emp) return handleUnlinkedText(zaloUserId, text);
+
+  const button = BUTTON_PAYLOAD.decode(text);
+  if (button) return handleTaskAction(zaloUserId, button.action, button.taskId);
 
   const conv = await getConversation(zaloUserId);
   const ctx = conv.context as { taskId?: string; note?: string };
@@ -174,10 +177,7 @@ export async function handleInboundText(zaloUserId: string, text: string) {
 
 export async function handleInboundImage(zaloUserId: string, urls: string[]) {
   const emp = await findEmployee(zaloUserId);
-  if (!emp) {
-    console.log(`[zalo:link] image from=${zaloUserId} not linked -> hint`);
-    return say(zaloUserId, copy.notLinkedHint);
-  }
+  if (!emp) return clients.handleClientImage(zaloUserId, urls);
 
   const conv = await getConversation(zaloUserId);
   const ctx = conv.context as { taskId?: string; note?: string };
@@ -246,9 +246,8 @@ export async function handleFollow(zaloUserId: string) {
     );
     return say(zaloUserId, copy.help);
   }
-  console.log(`[zalo:link] follow from=${zaloUserId} unlinked -> request info`);
-  await getZaloClient().requestUserInfo(zaloUserId, copy.shareInfoPrompt);
-  await say(zaloUserId, copy.followGreeting);
+  console.log(`[zalo:link] follow from=${zaloUserId} unlinked -> greeting`);
+  return say(zaloUserId, copy.followGreeting);
 }
 
 export async function handleUnfollow(zaloUserId: string) {
@@ -274,26 +273,9 @@ export async function handleUserInfo(
     console.log(`[zalo:link] user_info from=${zaloUserId} already linked, ignored`);
     return;
   }
-  if (!info.phone) {
-    console.log(`[zalo:link] user_info from=${zaloUserId} no phone -> ask code`);
-    return say(zaloUserId, copy.askInviteCode);
-  }
-
-  const res = await linking.linkByPhone(zaloUserId, info.phone);
-  console.log(
-    `[zalo:link] phone attempt from=${zaloUserId} phone=${info.phone} -> ${
-      res.ok ? `linked employee=${res.employeeId}` : `failed (${res.reason})`
-    }`,
-  );
-  if (res.ok) {
-    await setState(zaloUserId, "idle");
-    await say(zaloUserId, copy.phoneLinkSuccess(res.name));
-  } else {
-    await say(
-      zaloUserId,
-      res.reason === "inactive" ? copy.accountInactive : copy.phoneLinkNotFound,
-    );
-  }
+  // Sharing contact details no longer links an account: the invite code is
+  // the only self-service signal, so treat this as a customer reaching out.
+  return clients.handleClientInfo(zaloUserId, info);
 }
 
 // ---------------------------------------------------------------------------
@@ -311,8 +293,12 @@ async function handleTaskAction(
 ) {
   const emp = await findEmployee(zaloUserId);
   if (!emp) {
-    console.log(`[zalo:task] action=${action} from=${zaloUserId} not linked`);
-    return say(zaloUserId, copy.notLinkedHint);
+    // Unreachable from handleInboundText (unlinked text goes to the client
+    // flow); keep it defensive for a stale call.
+    console.log(
+      `[zalo:task] action=${action} from=${zaloUserId} not linked -> ignored`,
+    );
+    return;
   }
 
   const t = await db.query.task.findFirst({ where: eq(task.id, taskId) });
@@ -366,28 +352,30 @@ async function handleTaskAction(
 }
 
 async function handleUnlinkedText(zaloUserId: string, text: string) {
-  if (/^[A-Za-z0-9]{6}$/.test(text.trim())) {
-    const res = await linking.linkByInviteCode(zaloUserId, text);
-    console.log(
-      `[zalo:link] code attempt from=${zaloUserId} code=${text.trim()} -> ${
-        res.ok ? `linked employee=${res.employeeId}` : `failed (${res.reason})`
-      }`,
-    );
-    if (res.ok) {
-      await setState(zaloUserId, "idle");
-      return say(zaloUserId, copy.linkSuccess(res.name));
-    }
-    return say(
-      zaloUserId,
-      res.reason === "already_linked"
-        ? copy.alreadyLinked
-        : res.reason === "inactive"
-          ? copy.accountInactive
-          : copy.linkNotFound,
-    );
+  // The only thing that turns an unknown Zalo user into an employee is an
+  // invite code. Scan the whole message for one, so "mã của tôi là BCDF"
+  // works too; everything else is a customer message.
+  const code = linking.parseInviteCode(text);
+  if (!code) return clients.handleClientText(zaloUserId, text);
+
+  const res = await linking.linkByInviteCode(zaloUserId, code);
+  console.log(
+    `[zalo:link] code attempt from=${zaloUserId} code=${code} -> ${
+      res.ok ? `linked employee=${res.employeeId}` : `failed (${res.reason})`
+    }`,
+  );
+  if (res.ok) {
+    await setState(zaloUserId, "idle");
+    return say(zaloUserId, copy.linkSuccess(res.name));
   }
-  console.log(`[zalo:link] text from=${zaloUserId} is not a code -> hint`);
-  return say(zaloUserId, copy.notLinkedHint);
+  return say(
+    zaloUserId,
+    res.reason === "already_linked"
+      ? copy.alreadyLinked
+      : res.reason === "inactive"
+        ? copy.accountInactive
+        : copy.linkNotFound,
+  );
 }
 
 async function handleIdleText(

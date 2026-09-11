@@ -15,9 +15,14 @@ cài app, không cần đăng nhập.
 | -- | ------- | ------ |
 | **Quản lý** | Trang web `quanly.doisongxanh.com` | Kết nối nhân viên, giao việc, theo dõi, xác nhận hoàn thành |
 | **Nhân viên** | Zalo (trò chuyện với OA của công ty) | Nhận việc, báo bắt đầu, gửi ảnh hoàn thành, báo sự cố |
+| **Khách hàng** | Zalo (trò chuyện với OA của công ty) | Để lại lời nhắn; bot tự động cảm ơn, quản lý xem và trả lời thủ công |
 
 Mọi thông báo (giao việc, nhắc hạn, xác nhận, huỷ…) đều được bot Zalo gửi tự
 động. Quản lý không phải nhắn tin thủ công cho từng người.
+
+> OA phục vụ **cả nhân viên lẫn khách hàng**. Hệ thống chỉ coi một tài khoản Zalo
+> là nhân viên khi tài khoản đó **đã được kết nối** (xem mục 3). Mọi tài khoản
+> khác được xử lý như khách hàng — không bị báo "chưa kết nối".
 
 ---
 
@@ -50,28 +55,27 @@ việc về *Mới tạo*.
 ## 3. Kết nối tài khoản Zalo cho nhân viên
 
 Nhân viên phải được kết nối thì mới nhận được việc. Vào **Nhân viên → mở nhân
-viên**, chọn một trong ba cách:
+viên**, chọn một trong hai cách:
 
 ### Cách 1 · Mã mời (khuyên dùng)
 
-1. Bấm **Tạo mã mời** → hệ thống hiện mã gồm **6 ký tự** (ví dụ `K7M2QP`).
+1. Bấm **Tạo mã mời** → hệ thống hiện mã gồm **4 chữ cái** (ví dụ `MKTP`).
 2. Gửi mã này cho nhân viên qua bất kỳ kênh nào (điện thoại, tin nhắn…).
-3. Nhân viên **quan tâm OA** rồi nhắn đúng mã đó cho OA.
+3. Nhân viên **quan tâm OA** rồi nhắn mã đó cho OA — nhắn kèm nội dung khác
+   cũng được, hệ thống tự tìm mã trong tin nhắn.
 
 Mã **hết hạn sau 7 ngày**. Tạo mã mới sẽ thu hồi mã cũ, nên mã đã lộ ra ngoài
 cũng không dùng lại được. Nếu nhân viên báo mã sai/hết hạn, chỉ cần bấm
 **Tạo mã mời** lần nữa rồi gửi lại.
 
-### Cách 2 · Chia sẻ số điện thoại
+> Đây là **cách duy nhất** để nhân viên tự kết nối. Chia sẻ số điện thoại **không**
+> còn tự động kết nối tài khoản — nhân viên chưa kết nối mà nhắn cho OA sẽ được
+> xem là khách hàng.
 
-1. Đảm bảo hồ sơ nhân viên đã có **Số điện thoại** (đúng số nhân viên dùng Zalo).
-2. Nhân viên nhắn cho OA, bấm nút **chia sẻ số điện thoại**.
-3. Hệ thống khớp số điện thoại và tự kết nối.
+### Cách 2 · Nhập Zalo ID
 
-### Cách 3 · Nhập Zalo ID
-
-Nếu biết Zalo user id của nhân viên, dán vào ô **Cách 3 · Nhập Zalo ID** rồi bấm
-**Gắn**. Cách này tiện khi mã mời và số điện thoại đều không dùng được.
+Nếu biết Zalo user id của nhân viên, dán vào ô **Cách 2 · Nhập Zalo ID** rồi bấm
+**Gắn**. Cách này tiện khi nhân viên không nhắn được mã mời.
 
 ### Sau khi kết nối
 
@@ -143,6 +147,9 @@ Nếu có nhiều việc, bot sẽ nhắc dùng nút trên thẻ công việc.
   kèm, ô **Gửi lời nhắn cho nhân viên** (gửi thẳng qua Zalo), **Giao lại**,
   **Xác nhận hoàn thành**, **Huỷ công việc**, **Sửa nội dung**.
 - **Tổng quan** — số việc đang mở/quá hạn/chờ xác nhận và hoạt động gần đây.
+- **Zalo OA** — trạng thái OA, nhân viên đã kết nối, khung **Tin nhắn khách
+  hàng** (tin từ người chưa kết nối; bot đã tự phản hồi, quản lý trả lời thủ
+  công trong Zalo), và công cụ **Mô phỏng Zalo** khi chạy thử.
 
 ### Nhắc hạn tự động
 
@@ -192,10 +199,10 @@ công việc tối đa **1 lần/12 giờ**. Điều kiện để nhắc đượ
 | Tình huống | Cách xử lý |
 | ---------- | ---------- |
 | Nhân viên nhắn mã mời nhưng báo "không đúng hoặc hết hạn" | Mã quá 7 ngày hoặc đã bị thay. Bấm **Tạo mã mời** và gửi mã mới. |
-| Nhân viên chia sẻ SĐT nhưng báo "chưa tìm thấy" | SĐT trong hồ sơ khác với SĐT Zalo, hoặc hồ sơ đã có Zalo khác. Kiểm tra/sửa SĐT rồi thử lại, hoặc dùng mã mời / nhập Zalo ID. |
 | Nhân viên không nhận được thẻ giao việc | Kiểm tra: đã kết nối chưa, trạng thái có phải *Ngừng* không, lần tương tác cuối có quá 7 ngày không. Sửa xong bấm **Giao / Gửi lại Zalo** để gửi lại. |
 | Nhân viên bấm nút cũ và báo "công việc đã kết thúc" | Thẻ đó thuộc công việc đã *Đã xác nhận* hoặc *Đã huỷ*. Đây là hành vi đúng để tránh cập nhật nhầm. |
-| Muốn đổi tài khoản Zalo cho nhân viên | Mở nhân viên → **Hủy kết nối** → kết nối lại bằng mã mời/SĐT/ID mới. |
+| Muốn đổi tài khoản Zalo cho nhân viên | Mở nhân viên → **Hủy kết nối** → kết nối lại bằng mã mời hoặc Zalo ID mới. |
+| Khách hàng nhắn tin cho OA | Bot tự động cảm ơn và ghi lại. Xem ở **Zalo OA → Tin nhắn khách hàng** rồi trả lời thủ công trong ứng dụng Zalo OA. Tài khoản này **không** trở thành nhân viên nếu chưa có mã mời. |
 | Nhân viên báo hoàn thành nhưng chưa thấy ảnh | Bot đang chờ ảnh; nhân viên gửi ảnh, hoặc gõ `bỏ qua` để hoàn tất không ảnh. |
 | Nhân viên phản hồi mà không thấy gắn vào việc nào | Nhân viên có nhiều việc đang mở; yêu cầu họ bấm nút trên đúng thẻ công việc. |
 | Nghi ngờ nhân viên đã nghỉ việc | Đặt trạng thái **Ngừng** để dừng nhận tin; hệ thống cảnh báo nếu còn việc đang mở — nhớ giao lại cho người khác trước. |

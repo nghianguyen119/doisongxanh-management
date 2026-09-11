@@ -5,7 +5,12 @@ work from a small web portal; field employees receive assignments, accept work,
 report completion (with photos) and raise issues entirely through the company
 **Zalo Official Account** chat — no app, no login for them.
 
-Think Trello/ClickUp where the *employee client* is Zalo.
+The OA also serves **customers**. Anyone whose Zalo id is not linked to an
+employee is treated as a client: the bot replies once with a neutral
+acknowledgement (never an employee-linking hint) and the message appears under
+**Zalo OA → Tin nhắn khách hàng** for a manager to answer manually in Zalo.
+Only a 4-consonant invite code (e.g. `MKTP`) links a Zalo account to an
+employee; it may be written anywhere in the message.
 
 ## Stack
 
@@ -41,7 +46,7 @@ the bot sends back.
 
 ### Try the whole loop (mock)
 
-1. `/employees` → open **Trần Thị B** → **Tạo mã mời**. Copy the 6-char code.
+1. `/employees` → open **Trần Thị B** → **Tạo mã mời**. Copy the 4-letter code.
 2. `/settings/zalo` simulator → type the code as Zalo user `zalo-new-user` → the
    employee links and flips to *Đang hoạt động*.
 3. `/tasks/new` → create a task, assign to **Nguyễn Văn A** → an outbound card
@@ -143,8 +148,9 @@ src/
       task-service.ts        lifecycle mutations, each writes a task_event
       task-status.ts         legal transitions; guards stale Zalo buttons
       notification-service.ts Vietnamese Zalo messages per lifecycle change
-      conversation.ts        inbound state machine (buttons, issue/done flows)
-      employee-linking.ts    invite code / phone share / manual Zalo id
+      conversation.ts        employee inbound state machine (buttons, issue/done)
+      client-conversation.ts unlinked users: customer auto-reply + inbox logging
+      employee-linking.ts    invite code / manual Zalo id
       bot-copy.ts            every VN string the bot sends
     actions/         server actions used by portal forms
     queries.ts       read helpers + query-string filter validation

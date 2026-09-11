@@ -20,7 +20,7 @@ Before switching `ZALO_TRANSPORT=live`, note these items:
 | 2 | Webhook idempotency (Zalo retries) | **Done** — de-duplicated on Zalo `msg_id`; the route always 200s. |
 | 3 | Token storage + rotation | **Done** — `zalo_oa_token` row, refreshed 5 min before expiry, new refresh token persisted. |
 | 4 | Concurrency at refresh time | **Known edge** — Zalo refresh tokens are single-use. Two simultaneous sends exactly at refresh can cause one send to fail. Fine at low volume; add a Postgres advisory lock if traffic grows. |
-| 5 | `request_user_info` template | **Fix before relying on phone linking** — `client-real.ts` sends `image_url: ""`, but Zalo documents `image_url` as required. Put a real HTTPS image URL in the template. |
+| 5 | `request_user_info` template | **Unused** — linking is invite-code only, the bot no longer requests phone info. If phone linking is revived, fix `image_url` (Zalo requires it; `client-real.ts` sends `""`). |
 | 6 | Message window | **Limit** — CS messages only within **7 days** of the user's last interaction; free within 48h, paid after (see §6.4). Outside 7 days, delivery fails — needs ZNS template (not implemented). |
 | 7 | `ALLOWED_MANAGER_EMAILS` | **Must be non-empty in production** — an empty allowlist blocks every sign-in outside dev. |
 | 8 | Cron scheduler | Wire `CRON_SECRET` + an hourly trigger, or due-date reminders are disabled (503). |
@@ -39,27 +39,33 @@ handled — a short non-Zalo checklist is in §8.
 | app → Zalo | `GET https://openapi.zalo.me/v3.0/oa/user/detail?data={"user_id":…}` | display name when linking |
 | app → Zalo | `POST https://oauth.zaloapp.com/v4/oa/access_token` | refresh the access token (single-use refresh rotation) |
 
-Flow: an employee chats with the company **Zalo Official Account**. Buttons on
-task cards carry a payload like `task:accept:<task-uuid>`; tapping one sends a
-normal text message back to the OA, and the bot decodes it. Three identifiers
-must line up:
+Flow: the company **Zalo Official Account** serves both employees and
+customers. The Zalo id is looked up on `employee.zaloUserId` on every inbound
+event:
 
-- the Zalo user id stored on `employee.zaloUserId`,
-- the task id in the payload,
-- the assignee on that task.
+- **Linked** → employee flow. Buttons on task cards carry a payload like
+  `task:accept:<task-uuid>`; tapping one sends a normal text message back to
+  the OA, and the bot decodes it. The Zalo user id, the task id in the payload
+  and the assignee on that task must line up.
+- **Not linked** → customer flow. The message is logged and gets one neutral
+  acknowledgement; it is never answered with a "not connected" hint. The only
+  way into the employee flow is a 4-consonant invite code, matched anywhere
+  in the message
+  (`src/lib/workflow/employee-linking.ts`).
 
 Inbound events are parsed in `src/lib/zalo/parse.ts` and routed in
-`src/lib/workflow/conversation.ts`.
+`src/lib/workflow/conversation.ts` (employee) or
+`src/lib/workflow/client-conversation.ts` (customer).
 
 ### Webhook event mapping
 
 | `event_name` | App behaviour |
 | ------------ | ------------- |
-| `user_send_text` | Button payloads (`task:*`) or free text: link code, issue description, done note, comment |
-| `user_send_image` | Completion photo or issue photo (stored as `task_attachment`) |
-| `follow` | Greets and asks for the invite code / phone share; inactive accounts get a notice |
-| `unfollow` | Marks the employee `inactive` |
-| `user_submit_info` | Phone-share linking (`info.phone`) |
+| `user_send_text` | Linked: button payloads (`task:*`), invite code, issue description, done note, comment. Unlinked: invite code or customer acknowledgement |
+| `user_send_image` | Linked: completion photo or issue photo (stored as `task_attachment`). Unlinked: customer acknowledgement |
+| `follow` | Greets with both options (employee → invite code, customer → leave a message); inactive employees get a notice |
+| `unfollow` | Marks the linked employee `inactive`; unlinked users are just logged |
+| `user_submit_info` | Logged (visible in the portal client inbox); does **not** link an account |
 | everything else | Ignored (including `oa_send_*`, which would cause loops) |
 
 ---
@@ -199,8 +205,10 @@ Notes:
 ### G. First smoke test (after deploy)
 
 1. From a personal Zalo account, find the OA and press **Quan tâm** (Follow).
-   The OA should reply with the welcome message.
-2. Send any text → the bot replies asking for a 6-character invite code.
+   The OA should reply with the welcome message (invite code for employees,
+   leave a message for customers).
+2. Send any text without a code → the bot replies with a customer
+   acknowledgement, and the message shows under *Zalo OA → Tin nhắn khách hàng*.
 3. In the portal: `/employees` → open an employee → **Tạo mã mời** → copy the code.
 4. Send the code from that Zalo account → “Đã kết nối tài khoản…”, and the
    employee flips to *Đang hoạt động* with the Zalo id shown.
@@ -250,7 +258,8 @@ for sign-in). A full inbound event produces a chain like this:
 | `[zalo:webhook]` | HTTP request arrived; signature accepted (`sig=ok`), event name, parsed kind, sender, timing |
 | `[zalo:webhook] rejected bad signature …` | OA secret mismatch / missing header — request dropped with 401 |
 | `[zalo:inbound]` | Parsed event contents (text, image count, follow, phone) and handler result |
-| `[zalo:link]` | Linking decisions: code/phone attempts, follow/unfollow, active/inactive |
+| `[zalo:link]` | Linking decisions: invite-code attempts, follow/unfollow, active/inactive |
+| `[zalo:client]` | Unlinked user treated as a customer: auto-reply sent or skipped (within ack window) |
 | `[zalo:state]` | Conversation state machine transitions (with `taskId` context) |
 | `[zalo:task]` | Button actions, rejections (closed/not-yours), comments, done/issue notes |
 | `[zalo:send] ->` | Outbound OA call about to be made (`text=…` / `buttons=[…]`) |
@@ -328,12 +337,12 @@ OA quality/reporting in OA Manager also affects limits.
 | Symptom | Likely cause / fix |
 | ------- | ------------------ |
 | Webhook always `401 {"error":"bad signature"}` | Wrong `ZALO_OA_SECRET` (must be the OA secret, not App Secret), or a proxy rewrites the raw body. Our route reads `req.text()` before parsing — keep middleware from consuming it. |
-| Webhook returns 200 but nothing happens | The event is not subscribed, or the sender’s Zalo id is not linked to an employee (unlinked users only get the link hint). |
+| Webhook returns 200 but nothing happens | The event is not subscribed. Unlinked users are treated as customers: one auto-reply, then silence (see `[zalo:client]` logs). |
 | `Zalo send failed (…): <code> <message>` in `zalo_message_log.error` | See Zalo’s error code: `-124` usually means the user is not reachable (blocked / outside the 7-day window) or over quota. |
 | `Zalo OA not initialised` | `ZALO_OA_REFRESH_TOKEN` missing and no `zalo_oa_token` row. Re-run §3.E. |
 | `Zalo token refresh failed: invalid refresh token` | Refresh token was already used/expired. Re-run §3.E and clear the row (see §5.1). |
 | Button tap does nothing | Buttons are sent as `oa.query.hide`; the tap arrives as `user_send_text`. If payloads are missing, confirm the card was actually delivered and the task still belongs to that employee. |
-| `user_submit_info` never arrives (phone link) | Subscribe the event, and fix the empty `image_url` in the request-user-info template (see §0 item 5). |
+| `user_submit_info` never arrives | Subscribe the event if you want shared contact details logged for the customer inbox. It is no longer used for linking. |
 | Assign works but the employee gets no Zalo card | The assignee has no `zaloUserId` (status *Chờ kết nối*), or the 7-day window/send failed — check the log. |
 | Duplicate “task done” events | Should not happen (dedupe on `msg_id`); if it does, check that `zalo_message_log.external_id` is unique and populated. |
 
@@ -383,8 +392,8 @@ OA quality/reporting in OA Manager also affects limits.
 - [ ] `ZALO_APP_ID`, `ZALO_APP_SECRET`, `ZALO_OA_SECRET` set; `ZALO_TRANSPORT=live`.
 - [ ] Webhook URL + 5 events configured against the production domain (§3.D).
 - [ ] Fresh `ZALO_OA_REFRESH_TOKEN` in the env (first deploy only) (§3.E).
-- [ ] Smoke test §3.G passed with a real phone.
-- [ ] Consider fixing the `request_user_info` `image_url` before enabling phone linking.
+- [ ] Smoke test §3.G passed with a real phone (both the employee invite-code
+      link and the customer auto-reply).
 
 ---
 

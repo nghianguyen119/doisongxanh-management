@@ -7,7 +7,6 @@ import {
   linkManualAction,
   setEmployeeStatusAction,
   unlinkZaloAction,
-  updateEmployeeAction,
 } from "@/lib/actions/employees";
 import {
   EMPLOYEE_STATUS_LABEL,
@@ -19,10 +18,10 @@ import {
 } from "@/lib/labels";
 import { PageHeader, inputClass } from "@/components/ui";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { ActionForm, SubmitButton } from "@/components/action-form";
+import { EmployeeProfileForm } from "./employee-profile-form";
 
 function tasksByAssigneeHref(employeeId: string) {
   const filters = encodeURIComponent(
@@ -77,51 +76,15 @@ export default async function EmployeeDetailPage({
               Cập nhật {formatVN(e.updatedAt)}
             </span>
           </div>
-          <form action={updateEmployeeAction} className="space-y-3">
-            <input type="hidden" name="employeeId" value={e.id} />
-            <Field>
-              <FieldLabel htmlFor="name">Tên</FieldLabel>
-              <input
-                id="name"
-                name="name"
-                required
-                defaultValue={e.name}
-                className={inputClass}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="phone">Số điện thoại</FieldLabel>
-              <input
-                id="phone"
-                name="phone"
-                defaultValue={e.phone ?? ""}
-                className={inputClass}
-              />
-              <FieldDescription>
-                Dùng để nhân viên tự kết nối bằng cách chia sẻ SĐT trên Zalo.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="position">Vị trí</FieldLabel>
-              <input
-                id="position"
-                name="position"
-                defaultValue={e.position ?? ""}
-                className={inputClass}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="note">Ghi chú</FieldLabel>
-              <textarea
-                id="note"
-                name="note"
-                rows={3}
-                defaultValue={e.note ?? ""}
-                className={inputClass}
-              />
-            </Field>
-            <Button type="submit">Lưu thay đổi</Button>
-          </form>
+          <EmployeeProfileForm
+            employee={{
+              id: e.id,
+              name: e.name,
+              phone: e.phone,
+              position: e.position,
+              note: e.note,
+            }}
+          />
         </Card>
 
         <Card className="gap-4 p-5">
@@ -140,12 +103,16 @@ export default async function EmployeeDetailPage({
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <CopyButton value={e.zaloUserId} label="Sao chép ID" />
-                <form action={unlinkZaloAction}>
+                <ActionForm
+                  action={unlinkZaloAction}
+                  toastId="employee-unlink"
+                  successMessage="Đã hủy kết nối Zalo"
+                >
                   <input type="hidden" name="employeeId" value={e.id} />
-                  <Button type="submit" variant="outline" size="sm">
+                  <SubmitButton variant="outline" size="sm">
                     Hủy kết nối
-                  </Button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               </div>
             </div>
           ) : (
@@ -169,30 +136,25 @@ export default async function EmployeeDetailPage({
                 <CopyButton value={activeInvite.code} label="Sao chép mã" />
               </div>
             ) : (
-              <form action={generateInviteAction}>
+              <ActionForm
+                action={generateInviteAction}
+                toastId="employee-invite"
+                successMessage="Đã tạo mã mời"
+              >
                 <input type="hidden" name="employeeId" value={e.id} />
-                <Button type="submit" variant="outline">
-                  Tạo mã mời
-                </Button>
-              </form>
+                <SubmitButton variant="outline">Tạo mã mời</SubmitButton>
+              </ActionForm>
             )}
           </div>
 
           <div className="border-t pt-3">
-            <p className="mb-2 text-sm font-medium">Cách 2 · Chia sẻ SĐT</p>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
-                Nhân viên nhắn cho OA và bấm “chia sẻ số điện thoại”. Hệ thống
-                khớp với SĐT{" "}
-                {e.phone ? <b>{e.phone}</b> : "(chưa có — hãy cập nhật)"}.
-              </p>
-              {e.phone && <CopyButton value={e.phone} label="Sao chép SĐT" />}
-            </div>
-          </div>
-
-          <div className="border-t pt-3">
-            <p className="mb-2 text-sm font-medium">Cách 3 · Nhập Zalo ID</p>
-            <form action={linkManualAction} className="flex gap-2">
+            <p className="mb-2 text-sm font-medium">Cách 2 · Nhập Zalo ID</p>
+            <ActionForm
+              action={linkManualAction}
+              toastId="employee-link"
+              successMessage="Đã kết nối Zalo"
+              className="flex gap-2"
+            >
               <input type="hidden" name="employeeId" value={e.id} />
               <input
                 name="zaloUserId"
@@ -200,15 +162,18 @@ export default async function EmployeeDetailPage({
                 required
                 className={inputClass}
               />
-              <Button type="submit" variant="outline">
-                Gắn
-              </Button>
-            </form>
+              <SubmitButton variant="outline">Gắn</SubmitButton>
+            </ActionForm>
           </div>
 
           <div className="border-t pt-3">
             <p className="mb-2 text-sm font-medium">Trạng thái</p>
-            <form action={setEmployeeStatusAction} className="flex gap-2">
+            <ActionForm
+              action={setEmployeeStatusAction}
+              toastId="employee-status"
+              successMessage="Đã cập nhật trạng thái"
+              className="flex gap-2"
+            >
               <input type="hidden" name="employeeId" value={e.id} />
               <select
                 name="status"
@@ -219,10 +184,8 @@ export default async function EmployeeDetailPage({
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Ngừng</option>
               </select>
-              <Button type="submit" variant="outline">
-                Lưu
-              </Button>
-            </form>
+              <SubmitButton variant="outline">Lưu</SubmitButton>
+            </ActionForm>
           </div>
         </Card>
       </div>

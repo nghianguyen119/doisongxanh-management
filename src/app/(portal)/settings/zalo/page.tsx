@@ -4,6 +4,9 @@ import { employee } from "@/db/schema";
 import { env, isSimulatorEnabled } from "@/env";
 import { PageHeader } from "@/components/ui";
 import { Card } from "@/components/ui/card";
+import { listRecentClientMessages } from "@/lib/queries";
+import { formatVNShort } from "@/lib/time";
+import { describeInbound } from "@/lib/zalo/log";
 import { Simulator } from "./simulator";
 
 export default async function ZaloSettingsPage() {
@@ -12,6 +15,7 @@ export default async function ZaloSettingsPage() {
     where: isNotNull(employee.zaloUserId),
     orderBy: desc(employee.updatedAt),
   });
+  const clientMessages = await listRecentClientMessages();
 
   const webhookUrl = `${env.NEXT_PUBLIC_APP_URL}/api/zalo/webhook`;
 
@@ -64,6 +68,38 @@ export default async function ZaloSettingsPage() {
           )}
         </Card>
       </div>
+
+      <Card className="mt-6 gap-0 p-5">
+        <h2 className="font-semibold">Tin nhắn khách hàng</h2>
+        <p className="mt-1 mb-3 text-xs text-muted-foreground">
+          Tin nhắn Zalo từ người chưa kết nối nhân viên. Bot đã tự động phản hồi;
+          quản lý trả lời thủ công trong ứng dụng Zalo OA.
+        </p>
+        {clientMessages.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có tin nhắn nào.</p>
+        ) : (
+          <ul className="space-y-3 text-sm">
+            {clientMessages.map((m) => (
+              <li
+                key={m.id}
+                className="border-b pb-3 last:border-0 last:pb-0"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {m.zaloUserId}
+                  </span>
+                  <time className="shrink-0 text-xs text-muted-foreground">
+                    {formatVNShort(m.createdAt)}
+                  </time>
+                </div>
+                <p className="mt-0.5 break-words">
+                  {describeInbound(m.eventName, m.payload)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {isSimulatorEnabled() ? (
         <div className="mt-6">

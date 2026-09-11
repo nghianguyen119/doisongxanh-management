@@ -63,27 +63,28 @@ export const BTN = {
 };
 
 export const copy = {
-  // Linking
+  // Linking (employees) — the OA also serves customers, see "Client" below.
   followGreeting:
     "Chào mừng bạn đến với Đời Sống Xanh! 🌿\n" +
-    "Vui lòng gửi MÃ MỜI (6 ký tự) mà quản lý đã cấp để kết nối tài khoản. " +
-    "Hoặc nhấn nút bên dưới để chia sẻ số điện thoại.",
-  askInviteCode: "Vui lòng nhập MÃ MỜI gồm 6 ký tự do quản lý cung cấp.",
+    "• Nhân viên: gửi MÃ MỜI (4 chữ cái) do quản lý cấp để kết nối tài khoản.\n" +
+    "• Khách hàng: để lại lời nhắn, chúng tôi sẽ phản hồi trong thời gian sớm nhất.",
   linkSuccess: (name: string) =>
     `Đã kết nối tài khoản cho ${name}. ✅ Bạn sẽ nhận công việc tại đây.`,
   linkNotFound:
     "Mã mời không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại với quản lý.",
   alreadyLinked:
     "Mã mời này đã được dùng cho một tài khoản Zalo khác. Vui lòng liên hệ quản lý.",
-  phoneLinkSuccess: (name: string) =>
-    `Đã xác minh số điện thoại và kết nối tài khoản cho ${name}. ✅`,
-  phoneLinkNotFound:
-    "Chưa tìm thấy nhân viên với số điện thoại này. Vui lòng liên hệ quản lý.",
   accountInactive:
     "Tài khoản của bạn đang tạm ngưng. Vui lòng liên hệ quản lý để mở lại.",
-  notLinkedHint:
-    "Tài khoản Zalo của bạn chưa được kết nối. Vui lòng gửi MÃ MỜI do quản lý cấp.",
-  shareInfoPrompt: "Chia sẻ tên và số điện thoại để kết nối tài khoản",
+
+  // Client (any Zalo user not linked to an employee)
+  clientAutoReply:
+    "Cảm ơn bạn đã liên hệ Đời Sống Xanh. 🌿 Chúng tôi đã nhận được tin nhắn " +
+    "và sẽ phản hồi trong thời gian sớm nhất.",
+  clientImageAck:
+    "Đã nhận được hình ảnh. Chúng tôi sẽ kiểm tra và phản hồi sớm nhất. 🌿",
+  clientInfoAck:
+    "Cảm ơn bạn đã chia sẻ thông tin. Chúng tôi sẽ liên hệ với bạn sớm nhất. 🌿",
 
   // Assignment lifecycle
   assignedHeading: "🔔 Bạn có công việc mới:",

@@ -1,10 +1,12 @@
 "use client"
 
+import { useActionState } from "react"
 import { PlusCircleIcon } from "@phosphor-icons/react"
 
 import { createEmployeeAction } from "@/lib/actions/employees"
 import { inputClass } from "@/components/ui"
 import { Button } from "@/components/ui/button"
+import { SubmitButton } from "@/components/action-form"
 import {
   Drawer,
   DrawerClose,
@@ -16,10 +18,20 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { useActionToast } from "@/hooks/use-action-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 export function AddEmployeeDrawer() {
   const isMobile = useIsMobile()
+  const [state, formAction, pending] = useActionState(
+    createEmployeeAction,
+    null
+  )
+  useActionToast(state, pending, {
+    id: "employee-create",
+    successMessage: "Đã thêm nhân viên",
+    redirect: true,
+  })
 
   return (
     <Drawer swipeDirection={isMobile ? "down" : "right"}>
@@ -35,7 +47,7 @@ export function AddEmployeeDrawer() {
           </DrawerDescription>
         </DrawerHeader>
         <form
-          action={createEmployeeAction}
+          action={formAction}
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -57,9 +69,7 @@ export function AddEmployeeDrawer() {
                 name="phone"
                 className={inputClass}
               />
-              <FieldDescription>
-                Dùng để nhân viên tự kết nối bằng cách chia sẻ SĐT trên Zalo.
-              </FieldDescription>
+              <FieldDescription>Số liên hệ của nhân viên.</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="add-employee-position">Vị trí</FieldLabel>
@@ -79,9 +89,12 @@ export function AddEmployeeDrawer() {
                 className={inputClass}
               />
             </Field>
+            {state?.error && (
+              <p className="text-destructive text-sm">{state.error}</p>
+            )}
           </div>
           <DrawerFooter>
-            <Button type="submit">Thêm nhân viên</Button>
+            <SubmitButton>Thêm nhân viên</SubmitButton>
             <DrawerClose render={<Button type="button" variant="outline" />}>
               Huỷ
             </DrawerClose>

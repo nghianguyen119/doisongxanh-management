@@ -30,11 +30,12 @@ test.describe("zalo linking", () => {
     const codeLocator = page.locator("span.font-mono.text-base").first();
     await expect(codeLocator).toBeVisible();
     const code = (await codeLocator.innerText()).trim();
-    expect(code).toMatch(/^[A-Z0-9]{6}$/);
+    expect(code).toMatch(/^[BCDGHKLMNPQRSTVX]{4}$/);
 
     const zaloUserId = `e2e-zalo-${uniq()}`;
     await simulatorOpen(page, zaloUserId);
-    await simulatorSendText(page, code);
+    // The code is found anywhere in the message, not only on its own.
+    await simulatorSendText(page, `Mã mời của tôi là ${code} nhé`);
     await expect(page.getByText(/Đã kết nối tài khoản/).first()).toBeVisible();
 
     await page.goto(`/employees/${employeeId}`);
@@ -45,23 +46,22 @@ test.describe("zalo linking", () => {
     await expect(page.getByText("Chưa kết nối Zalo.")).toBeVisible();
   });
 
-  test("links by sharing a phone number", async ({ page }) => {
-    const phone = e2ePhone();
-    const employeeId = await createEmployeeViaUi(page, {
-      name: e2eName("phone"),
-      phone,
-    });
-
+  test("treats an unlinked user as a client, not an employee", async ({
+    page,
+  }) => {
     const zaloUserId = `e2e-zalo-${uniq()}`;
     await simulatorOpen(page, zaloUserId);
-    await page.getByPlaceholder("SĐT để chia sẻ (user_info)").fill(phone);
-    await page.getByRole("button", { name: "Chia sẻ SĐT" }).click();
+    await simulatorSendText(page, "Tôi muốn tư vấn dịch vụ");
     await expect(
-      page.getByText(/Đã xác minh số điện thoại/).first()
+      page.getByText(/Cảm ơn bạn đã liên hệ Đời Sống Xanh/).first()
     ).toBeVisible();
 
-    await page.goto(`/employees/${employeeId}`);
-    await expect(page.getByText("Đã kết nối").first()).toBeVisible();
+    // The message shows up in the portal client inbox after a reload.
+    await page.reload();
+    await expect(page.getByText("Tin nhắn khách hàng")).toBeVisible();
+    await expect(
+      page.getByText("Tôi muốn tư vấn dịch vụ").first()
+    ).toBeVisible();
   });
 
   test("an inactive employee cannot link with an old code", async ({ page }) => {

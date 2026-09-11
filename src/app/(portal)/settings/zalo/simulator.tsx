@@ -58,7 +58,9 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
 
   return (
     <Card className="gap-0 p-5">
-      <h2 className="mb-3 font-semibold">Mô phỏng Zalo (điện thoại nhân viên)</h2>
+      <h2 className="mb-3 font-semibold">
+        Mô phỏng Zalo (nhân viên / khách hàng)
+      </h2>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">Zalo user:</span>
@@ -114,7 +116,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Nhập tin nhắn của nhân viên…"
+            placeholder="Nhập tin nhắn…"
             className={inputClass}
             onKeyDown={(e) => {
               if (e.key === "Enter" && text.trim())

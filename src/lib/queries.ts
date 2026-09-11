@@ -9,6 +9,7 @@ import {
   isNotNull,
   lt,
   ne,
+  notInArray,
   sql,
 } from "drizzle-orm";
 import { db } from "@/db";
@@ -22,6 +23,7 @@ import {
   taskPriority,
   taskStatus,
   user,
+  zaloMessageLog,
 } from "@/db/schema";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import type { TaskStatus } from "@/lib/workflow/task-status";
@@ -362,6 +364,38 @@ export async function listActiveEmployeesForSelect() {
     .from(employee)
     .where(inArray(employee.status, ["active", "invited"]))
     .orderBy(asc(employee.name));
+}
+
+/**
+ * Inbound messages from Zalo users that are not linked to any employee —
+ * customers reaching the OA. Read-only; the bot acknowledges them once and
+ * managers follow up in Zalo manually.
+ */
+export async function listRecentClientMessages(limit = 50) {
+  const linkedZaloUserIds = db
+    .select({ id: employee.zaloUserId })
+    .from(employee)
+    .where(isNotNull(employee.zaloUserId));
+
+  return db
+    .select({
+      id: zaloMessageLog.id,
+      zaloUserId: zaloMessageLog.zaloUserId,
+      eventName: zaloMessageLog.eventName,
+      payload: zaloMessageLog.payload,
+      createdAt: zaloMessageLog.createdAt,
+    })
+    .from(zaloMessageLog)
+    .where(
+      and(
+        eq(zaloMessageLog.direction, "in"),
+        isNotNull(zaloMessageLog.zaloUserId),
+        inArray(zaloMessageLog.eventName, ["text", "image", "user_info"]),
+        notInArray(zaloMessageLog.zaloUserId, linkedZaloUserIds),
+      ),
+    )
+    .orderBy(desc(zaloMessageLog.createdAt))
+    .limit(limit);
 }
 
 /**

@@ -5,9 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/db", () => ({ db: {} }));
 vi.mock("@/lib/zalo/factory", () => ({ getZaloClient: () => ({}) }));
 
-const { normalizePhone, isValidPhone, parsePhone } = await import(
-  "./employee-linking"
-);
+const { normalizePhone, isValidPhone, parsePhone, parseInviteCode } =
+  await import("./employee-linking");
 
 describe("normalizePhone", () => {
   it("strips separators", () => {
@@ -45,5 +44,23 @@ describe("parsePhone", () => {
     expect(parsePhone("")).toBeNull();
     expect(parsePhone("abc")).toBeNull();
     expect(parsePhone("01239123")).toBeNull();
+  });
+});
+
+describe("parseInviteCode", () => {
+  it("finds a code anywhere in a free-form message", () => {
+    expect(parseInviteCode("Mã của tôi là MKTP nhé")).toBe("MKTP");
+    expect(parseInviteCode("mktp")).toBe("MKTP");
+  });
+
+  it("returns null when there is no 4-consonant run", () => {
+    expect(parseInviteCode("Tôi cần tư vấn")).toBeNull();
+    expect(parseInviteCode("")).toBeNull();
+  });
+
+  it("ignores runs containing vowels or digits", () => {
+    expect(parseInviteCode("BCDE")).toBeNull();
+    expect(parseInviteCode("BCD2")).toBeNull();
+    expect(parseInviteCode("BC")).toBeNull();
   });
 });
