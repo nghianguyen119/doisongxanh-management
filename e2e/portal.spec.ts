@@ -1,24 +1,26 @@
 import { test, expect } from "@playwright/test";
 
-const PAGES: [path: string, heading: string][] = [
-  ["/dashboard", "Tổng quan"],
-  ["/tasks", "Công việc"],
-  ["/tasks/new", "Tạo công việc"],
-  ["/employees", "Nhân viên"],
-  ["/kanban", "Bảng tiến độ"],
-  ["/settings/zalo", "Zalo OA"],
+const PAGES: [path: string, heading: string, level: 1 | 2][] = [
+  // The dashboard leans on the header's "Tổng quan"; its first heading is the
+  // status-mix tile, so it is matched at level 2 instead of the page title.
+  ["/dashboard", "Cơ cấu trạng thái", 2],
+  ["/tasks", "Công việc", 1],
+  ["/tasks/new", "Tạo công việc", 1],
+  ["/employees", "Nhân viên", 1],
+  ["/kanban", "Bảng tiến độ", 1],
+  ["/settings/zalo", "Zalo OA", 1],
 ];
 
 test.describe("portal pages", () => {
-  for (const [path, heading] of PAGES) {
+  for (const [path, heading, level] of PAGES) {
     test(`renders ${path}`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
-      // SidebarInset is itself a <main>; the page title lives in the inner one.
+      // SidebarInset is itself a <main>; the page content lives in the inner one.
       await expect(
         page
           .locator("main main")
-          .getByRole("heading", { name: heading, level: 1 })
+          .getByRole("heading", { name: heading, level })
       ).toBeVisible();
       await expect(page.getByText("Không thực hiện được")).toHaveCount(0);
     });

@@ -1,118 +1,56 @@
-import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
 import { getDashboardData } from "@/lib/queries";
-import {
-  OPEN_TASK_STATUSES,
-  TASK_EVENT_LABEL,
-  TASK_STATUS_LABEL,
-  TASK_STATUS_TONE,
-} from "@/lib/labels";
-import { PageHeader } from "@/components/ui";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { SectionCards } from "@/components/section-cards";
+import type { TaskStatus } from "@/lib/workflow/task-status";
+import { ActivityTile } from "@/components/dashboard/activity-tile";
+import { HeroTile } from "@/components/dashboard/hero-tile";
+import { OverdueTile } from "@/components/dashboard/overdue-tile";
+import { StatusMixTile } from "@/components/dashboard/status-mix-tile";
+import { WorkloadTile } from "@/components/dashboard/workload-tile";
 
 export default async function DashboardPage() {
   const { statusCounts, overdue, workload, recent } = await getDashboardData();
 
-  const stats = {
-    open: OPEN_TASK_STATUSES.reduce((n, s) => n + (statusCounts[s] ?? 0), 0),
-    overdue: overdue.length,
-    awaitingVerification: statusCounts["done"] ?? 0,
-    verified: statusCounts["verified"] ?? 0,
+  const counts: Record<TaskStatus, number> = {
+    assigned: statusCounts.assigned ?? 0,
+    in_progress: statusCounts.in_progress ?? 0,
+    blocked: statusCounts.blocked ?? 0,
+    done: statusCounts.done ?? 0,
+    verified: statusCounts.verified ?? 0,
+    cancelled: statusCounts.cancelled ?? 0,
   };
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
 
   return (
-    <div>
-      <PageHeader
-        title="Tổng quan"
-        description="Tình hình công việc toàn công ty."
+    <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-6 @3xl/main:gap-5 @4xl/main:grid-cols-12">
+      <HeroTile
+        counts={counts}
+        overdueCount={overdue.length}
+        className="@xl/main:col-span-6 @4xl/main:col-span-8"
       />
 
-      <div className="mb-6">
-        <SectionCards stats={stats} />
-      </div>
+      <StatusMixTile
+        counts={counts}
+        total={total}
+        className="@xl/main:col-span-3 @4xl/main:col-span-4"
+      />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="gap-0 p-5">
-          <h2 className="mb-3 font-semibold">Quá hạn / cần chú ý</h2>
-          {overdue.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Không có công việc quá hạn. 🎉</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {overdue.map((t) => (
-                <li key={t.id} className="py-2 text-sm">
-                  <Link
-                    href={`/tasks/${t.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {t.title}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">
-                    {t.assignee?.name ?? "Chưa giao"} ·{" "}
-                    <Badge className={TASK_STATUS_TONE[t.status]}>
-                      {TASK_STATUS_LABEL[t.status]}
-                    </Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      <WorkloadTile
+        workload={workload.map((entry) => ({
+          employeeId: entry.employeeId,
+          name: entry.name,
+          open: Number(entry.open),
+        }))}
+        className="@xl/main:col-span-3 @4xl/main:col-span-4 @4xl/main:row-span-2"
+      />
 
-        <Card className="gap-0 p-5">
-          <h2 className="mb-3 font-semibold">Khối lượng theo nhân viên</h2>
-          {workload.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chưa có nhân viên hoạt động.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {workload.map((w) => (
-                <li
-                  key={w.employeeId}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <Link
-                    href={`/employees/${w.employeeId}`}
-                    className="hover:underline"
-                  >
-                    {w.name}
-                  </Link>
-                  <span className="font-medium">{Number(w.open)} việc mở</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      <OverdueTile
+        overdue={overdue}
+        className="@xl/main:col-span-6 @4xl/main:col-span-8"
+      />
 
-      <Card className="mt-6 gap-0 p-5">
-        <h2 className="mb-3 font-semibold">Hoạt động gần đây</h2>
-        <ul className="divide-y divide-border">
-          {recent.map((e) => (
-            <li key={e.id} className="py-2 text-sm">
-              <span className="text-muted-foreground">
-                {formatDistanceToNow(e.createdAt, {
-                  addSuffix: true,
-                  locale: vi,
-                })}
-              </span>{" "}
-              — {TASK_EVENT_LABEL[e.type]} ·{" "}
-              <Link
-                href={`/tasks/${e.taskId}`}
-                className="font-medium hover:underline"
-              >
-                {e.taskTitle}
-              </Link>
-              {typeof (e.payload as { to?: string }).to === "string" && (
-                <> → {TASK_STATUS_LABEL[
-                  (e.payload as { to: keyof typeof TASK_STATUS_LABEL }).to
-                ] ?? (e.payload as { to: string }).to}</>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <ActivityTile
+        recent={recent}
+        className="@xl/main:col-span-6 @4xl/main:col-span-8"
+      />
     </div>
   );
 }
