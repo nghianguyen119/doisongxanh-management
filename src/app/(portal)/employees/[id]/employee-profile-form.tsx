@@ -74,7 +74,7 @@ export function EmployeeProfileForm({
         />
       </Field>
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
-      <SubmitButton>Lưu thay đổi</SubmitButton>
+      <SubmitButton className="w-full">Lưu thay đổi</SubmitButton>
     </form>
   )
 }
