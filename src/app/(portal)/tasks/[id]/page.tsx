@@ -9,10 +9,10 @@ export default async function TaskDetailPage({
   const { id } = await params;
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <Link
         href="/tasks"
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" />
         Danh sách công việc
