@@ -147,7 +147,7 @@ export function TasksTable({
           cell: ({ row }) => (
             <div
               className={cn(
-                "text-right tabular-nums",
+                "tabular-nums",
                 row.original.overdue && "font-medium text-destructive"
               )}
             >
