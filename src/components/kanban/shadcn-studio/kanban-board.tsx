@@ -51,6 +51,12 @@ function initialsOf(name: string) {
     .toUpperCase()
 }
 
+function shortenName(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length <= 1) return name
+  return `${parts[parts.length - 1]} ${parts[0]}`
+}
+
 function TaskCard({
   task,
   isOverlay,
@@ -71,12 +77,12 @@ function TaskCard({
       <div className="flex items-start justify-between gap-2">
         <Link
           href={`/tasks/${task.id}`}
-          className="line-clamp-2 text-sm leading-snug font-medium hover:underline"
+          className="min-w-0 flex-1 text-sm leading-snug font-medium hover:underline"
         >
-          <span className="text-muted-foreground mr-1.5 font-mono text-[10px]">
+          <span className="text-muted-foreground block font-mono text-[10px]">
             {task.ref}
           </span>
-          {task.title}
+          <span className="line-clamp-2 block">{task.title}</span>
         </Link>
         <span
           className={cn(
@@ -101,7 +107,9 @@ function TaskCard({
               {task.assigneeName ? initialsOf(task.assigneeName) : "?"}
             </AvatarFallback>
           </Avatar>
-          <span className="truncate">{task.assigneeName ?? "Chưa giao"}</span>
+          <span className="truncate">
+            {task.assigneeName ? shortenName(task.assigneeName) : "Chưa giao"}
+          </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {task.attachmentCount > 0 && (
