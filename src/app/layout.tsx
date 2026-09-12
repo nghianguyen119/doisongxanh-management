@@ -10,6 +10,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 export const metadata: Metadata = {
   title: "Đời Sống Xanh — Quản lý công việc",
   description: "Cổng quản lý công việc, giao việc qua Zalo OA.",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

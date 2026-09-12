@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
 import {
   SquaresFourIcon,
@@ -8,7 +9,6 @@ import {
   UsersIcon,
   ChatCircleIcon,
   KanbanIcon,
-  LeafIcon,
 } from "@phosphor-icons/react"
 
 import { NavMain } from "@/components/nav-main"
@@ -24,6 +24,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+/**
+ * Icon colours follow the kanban status palette (KANBAN_COLUMNS) so the shell
+ * and the board read as one system: blue = active, amber = in progress,
+ * violet = awaiting review, green = done, slate = neutral.
+ */
 const NAV_MAIN = [
   {
     title: "Tổng quan",
@@ -33,17 +38,17 @@ const NAV_MAIN = [
   {
     title: "Công việc",
     url: "/tasks",
-    icon: <ListChecksIcon weight="duotone" color="#10b981" />,
+    icon: <ListChecksIcon weight="duotone" color="#f59e0b" />,
   },
   {
     title: "Bảng tiến độ",
     url: "/kanban",
-    icon: <KanbanIcon weight="duotone" color="#f43f5e" />,
+    icon: <KanbanIcon weight="duotone" color="#8b5cf6" />,
   },
   {
     title: "Nhân viên",
     url: "/employees",
-    icon: <UsersIcon weight="duotone" color="#8b5cf6" />,
+    icon: <UsersIcon weight="duotone" color="#16a34a" />,
   },
 ]
 
@@ -51,7 +56,7 @@ const NAV_SECONDARY = [
   {
     title: "Zalo OA",
     url: "/settings/zalo",
-    icon: <ChatCircleIcon weight="duotone" color="#0ea5e9" />,
+    icon: <ChatCircleIcon weight="duotone" color="#64748b" />,
   },
 ]
 
@@ -73,9 +78,12 @@ export function AppSidebar({
               className="data-[slot=sidebar-menu-button]:p-1.5!"
               render={<Link href="/dashboard" />}
             >
-              <LeafIcon
-                weight="duotone"
-                color="#22c55e"
+              <Image
+                src="/logo.png"
+                alt=""
+                width={20}
+                height={20}
+                priority
                 className="size-5!"
               />
               <span className="text-base font-semibold">Đời Sống Xanh</span>
