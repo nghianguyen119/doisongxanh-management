@@ -189,7 +189,7 @@ export const copy = {
   /** Card shown when the employee picks a task from the menu. */
   pickedCardHeading: "📌 Công việc đang trao đổi",
   pickedCardClosing:
-    "Các tin nhắn/ảnh tiếp theo sẽ được gắn vào việc này. Bấm 📝 Báo cáo tiến độ để cập nhật.",
+    "Các tin nhắn/ảnh tiếp theo sẽ được gắn vào việc này.",
   progressHeading: "📝 Báo cáo tiến độ",
   progressClosing:
     "Bạn hãy gửi nội dung hoặc ảnh cập nhật cho việc này. Tin nhắn tiếp theo sẽ được ghi vào công việc.",
