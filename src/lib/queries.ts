@@ -25,7 +25,7 @@ import {
   user,
   zaloMessageLog,
 } from "@/db/schema";
-import { OPEN_TASK_STATUSES } from "@/lib/labels";
+import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
 import type { TaskStatus } from "@/lib/workflow/task-status";
 import type { ExtendedColumnFilter } from "@/types/data-table";
 import type { KanbanTask } from "@/components/kanban/columns";
@@ -427,6 +427,7 @@ export async function getKanbanTasks(): Promise<KanbanTask[]> {
 
   return rows.map((t) => ({
     id: t.id,
+    ref: taskRef(t.refNo),
     title: t.title,
     description: t.description,
     status: t.status,

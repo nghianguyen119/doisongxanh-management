@@ -1,5 +1,11 @@
 import { getZaloClient } from "@/lib/zalo/factory";
-import { BTN, copy, taskCardText, type TaskCardInput } from "./bot-copy";
+import {
+  BTN,
+  copy,
+  taskCardText,
+  taskNoticeText,
+  type TaskCardInput,
+} from "./bot-copy";
 
 /**
  * Composes + sends the Vietnamese Zalo messages that correspond to task
@@ -43,8 +49,16 @@ export function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
   return safe(
     getZaloClient().sendButtons(
       zaloUserId,
-      taskCardText(task, copy.assignedHeading),
-      [BTN.start(task.id), BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+      taskCardText(task, {
+        heading: copy.assignedHeading,
+        closing: copy.assignedClosing,
+      }),
+      [
+        BTN.start(task.id),
+        BTN.done(task.id),
+        BTN.issue(task.id),
+        BTN.myTasks(),
+      ],
     ),
   );
 }
@@ -53,47 +67,88 @@ export function notifyUpdated(task: TaskCardInput, zaloUserId: string) {
   return safe(
     getZaloClient().sendButtons(
       zaloUserId,
-      taskCardText(task, copy.updatedHeading),
-      [BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+      taskCardText(task, {
+        heading: copy.updatedHeading,
+        closing: copy.updatedClosing,
+      }),
+      [BTN.done(task.id), BTN.issue(task.id), BTN.myTasks()],
     ),
   );
 }
 
 export function notifyStarted(task: TaskCardInput, zaloUserId: string) {
   return safe(
-    getZaloClient().sendButtons(zaloUserId, copy.startedAck, [
-      BTN.done(task.id),
-      BTN.issue(task.id),
-    ]),
+    getZaloClient().sendButtons(
+      zaloUserId,
+      taskNoticeText(task, {
+        heading: copy.startedHeading,
+        closing: copy.startedClosing,
+      }),
+      [BTN.done(task.id), BTN.issue(task.id)],
+    ),
   );
 }
 
-export function notifyDoneAck(zaloUserId: string) {
-  return safe(getZaloClient().sendText(zaloUserId, copy.doneAck));
-}
-
-export function notifyIssueAck(zaloUserId: string) {
-  return safe(getZaloClient().sendText(zaloUserId, copy.issueAck));
-}
-
-export function notifyVerified(zaloUserId: string) {
-  return safe(getZaloClient().sendText(zaloUserId, copy.verifiedNotice));
-}
-
-export function notifyCancelled(zaloUserId: string) {
-  return safe(getZaloClient().sendText(zaloUserId, copy.cancelledNotice));
-}
-
-export function forwardManagerComment(zaloUserId: string, text: string) {
-  return safe(getZaloClient().sendText(zaloUserId, copy.managerComment(text)));
-}
-
-export function sendTaskDetail(task: TaskCardInput, zaloUserId: string) {
+export function notifyDoneAck(task: TaskCardInput, zaloUserId: string) {
   return safe(
-    getZaloClient().sendButtons(
+    getZaloClient().sendText(
       zaloUserId,
-      taskCardText(task, copy.detailHeading),
-      [BTN.done(task.id), BTN.issue(task.id)],
+      taskNoticeText(task, {
+        heading: copy.doneHeading,
+        closing: copy.doneClosing,
+      }),
+    ),
+  );
+}
+
+export function notifyIssueAck(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendText(
+      zaloUserId,
+      taskNoticeText(task, {
+        heading: copy.issueAckHeading,
+        closing: copy.issueAckClosing,
+      }),
+    ),
+  );
+}
+
+export function notifyVerified(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendText(
+      zaloUserId,
+      taskNoticeText(task, {
+        heading: copy.verifiedHeading,
+        closing: copy.verifiedClosing,
+      }),
+    ),
+  );
+}
+
+export function notifyCancelled(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendText(
+      zaloUserId,
+      taskNoticeText(task, {
+        heading: copy.cancelledHeading,
+        closing: copy.cancelledClosing,
+      }),
+    ),
+  );
+}
+
+export function forwardManagerComment(
+  task: TaskCardInput,
+  zaloUserId: string,
+  text: string,
+) {
+  return safe(
+    getZaloClient().sendText(
+      zaloUserId,
+      taskNoticeText(task, {
+        heading: copy.managerCommentHeading,
+        closing: text,
+      }),
     ),
   );
 }
@@ -106,11 +161,13 @@ export function sendReminder(
   return safe(
     getZaloClient().sendButtons(
       zaloUserId,
-      taskCardText(
-        task,
-        overdue ? copy.reminderOverdue(task.title) : copy.reminderDue(task.title),
-      ),
-      [BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+      taskCardText(task, {
+        heading: overdue
+          ? copy.reminderOverdueHeading
+          : copy.reminderDueHeading,
+        closing: copy.reminderClosing,
+      }),
+      [BTN.done(task.id), BTN.issue(task.id), BTN.myTasks()],
     ),
   );
 }

@@ -1,17 +1,16 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, zaloConversation } from "@/db/schema";
-import { OPEN_TASK_STATUSES } from "@/lib/labels";
+import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
 import { getZaloClient } from "@/lib/zalo/factory";
 import { preview } from "@/lib/zalo/log";
-import { BUTTON_PAYLOAD } from "@/lib/zalo/types";
-import { copy, taskPickText } from "./bot-copy";
+import { BUTTON_PAYLOAD, COMMAND_PAYLOAD } from "@/lib/zalo/types";
+import { BTN, copy, taskNoticeText, type TaskLabelInput } from "./bot-copy";
 import * as clients from "./client-conversation";
 import * as linking from "./employee-linking";
 import { parseTaskPick, pickPage, sortOpenTasks } from "./task-pick";
 import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
-import * as notify from "./notification-service";
 import { onboardEmployee } from "./onboarding";
 import { ACTION_TARGET_STATUS, isClosed } from "./task-status";
 
@@ -76,6 +75,16 @@ async function findEmployee(zaloUserId: string): Promise<EmployeeRow | null> {
       where: eq(employee.zaloUserId, zaloUserId),
     })) ?? null
   );
+}
+
+/** `DSX-12 · Tưới cây sảnh` for messages that name a task. */
+function taskLabel(t: TaskRow): TaskLabelInput {
+  return { ref: taskRef(t.refNo), title: t.title };
+}
+
+/** Plain-text form of the same label, for the fallback copy functions. */
+function namedRow(t: TaskRow): string {
+  return `${taskRef(t.refNo)} · ${t.title}`;
 }
 
 /** Reads the conversation cursor, treating a stale in-flight state as idle. */
@@ -182,7 +191,10 @@ async function applyFreeMessage(
     attachmentUrls: content.urls,
   });
   await mergeContext(zaloUserId, { activeTaskId: target.id });
-  return say(zaloUserId, copy.commentAck(target.title));
+  return say(
+    zaloUserId,
+    taskNoticeText(taskLabel(target), { heading: copy.commentAckHeading }),
+  );
 }
 
 /** Sends the numbered list and parks the message until a number arrives. */
@@ -201,12 +213,14 @@ async function askTaskPick(
       ...pending,
     },
   });
-  await say(
+  // Buttons, not a numbered list: one tap picks the task, and "Xem thêm" pages
+  // on with the same "ds" command that typing used to require.
+  const buttons = slice.map((t) => BTN.pick(t.id, t.title, taskRef(t.refNo)));
+  if (hasMore) buttons.push(BTN.more());
+  await getZaloClient().sendButtons(
     zaloUserId,
-    taskPickText(
-      slice.map((t, i) => ({ index: i + 1, title: t.title, dueAt: t.dueAt })),
-      { total, hasMore },
-    ),
+    copy.pickMenu(total),
+    buttons,
   );
 }
 
@@ -221,7 +235,13 @@ async function listOpenTasks(
   if (open.length === 0) return say(zaloUserId, copy.noActiveTask);
   if (open.length === 1) {
     await mergeContext(zaloUserId, { activeTaskId: open[0].id });
-    return say(zaloUserId, copy.onlyOneTask(open[0].title));
+    return say(
+      zaloUserId,
+      taskNoticeText(taskLabel(open[0]), {
+        heading: copy.oneTaskHeading,
+        closing: copy.oneTaskClosing,
+      }),
+    );
   }
   return askTaskPick(zaloUserId, employeeId, open, page, pending);
 }
@@ -237,7 +257,9 @@ async function reportFailure(zaloUserId: string, res: TaskResult) {
   );
   await say(
     zaloUserId,
-    res.reason === "not_found" ? copy.noActiveTask : copy.taskClosed,
+    res.reason === "not_found"
+      ? copy.noActiveTask
+      : copy.taskClosed(res.task ? namedRow(res.task) : undefined),
   );
 }
 
@@ -263,8 +285,16 @@ async function reportActionFailure(
     `[zalo:task] action=${action} rejected from=${zaloUserId} reason=${res.reason} task=${res.task?.id ?? "?"} status=${status ?? "?"}`,
   );
   if (res.reason === "not_found") return say(zaloUserId, copy.noActiveTask);
-  if (status && isClosed(status)) return say(zaloUserId, copy.taskClosed);
-  return say(zaloUserId, copy.taskStateChanged);
+  if (status && isClosed(status)) {
+    return say(
+      zaloUserId,
+      copy.taskClosed(res.task ? namedRow(res.task) : undefined),
+    );
+  }
+  return say(
+    zaloUserId,
+    copy.taskStateChanged(res.task ? namedRow(res.task) : undefined),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -279,6 +309,12 @@ export async function handleInboundText(zaloUserId: string, text: string) {
 
   const button = BUTTON_PAYLOAD.decode(text);
   if (button) return handleTaskAction(zaloUserId, button.action, button.taskId);
+
+  // The "Việc của tôi" button works from any state, so it must never be
+  // swallowed as an issue description or completion note.
+  if (text.trim() === COMMAND_PAYLOAD.myTasks) {
+    return listOpenTasks(zaloUserId, emp.id, 0, {});
+  }
 
   const conv = await getConversation(zaloUserId);
   const ctx = conv.context as ConvContext;
@@ -448,7 +484,7 @@ async function handleTaskAction(
     console.log(
       `[zalo:task] action=${action} task=${taskId} ignored: closed (${t.status})`,
     );
-    return say(zaloUserId, copy.taskClosed);
+    return say(zaloUserId, copy.taskClosed(namedRow(t)));
   }
 
   // The action already took effect (a delayed duplicate tap): the first tap
@@ -486,11 +522,32 @@ async function handleTaskAction(
         taskId,
         activeTaskId: taskId,
       });
-      return say(zaloUserId, copy.askIssueText);
-    case "detail":
-      await mergeContext(zaloUserId, { activeTaskId: taskId });
-      await notify.sendTaskDetail(tasks.taskToCard(t), zaloUserId);
-      return;
+      return say(
+        zaloUserId,
+        taskNoticeText(taskLabel(t), {
+          heading: copy.issueHeading,
+          closing: copy.issueClosing,
+        }),
+      );
+    case "pick": {
+      // Menu tap: make the task sticky and apply whatever the employee sent
+      // before choosing (a note or a photo).
+      const pick = ctx.pick;
+      await setState(zaloUserId, "idle", { activeTaskId: taskId });
+      if (pick?.text || pick?.urls?.length) {
+        return applyFreeMessage(zaloUserId, emp, t, {
+          text: pick.text,
+          urls: pick.urls,
+        });
+      }
+      return say(
+        zaloUserId,
+        taskNoticeText(taskLabel(t), {
+          heading: copy.pickedHeading,
+          closing: copy.pickedClosing,
+        }),
+      );
+    }
     default:
       return say(zaloUserId, copy.help);
   }
@@ -621,5 +678,11 @@ async function handlePickReply(
       urls: pick.urls,
     });
   }
-  return say(zaloUserId, copy.taskPicked(target.title));
+  return say(
+    zaloUserId,
+    taskNoticeText(taskLabel(target), {
+      heading: copy.pickedHeading,
+      closing: copy.pickedClosing,
+    }),
+  );
 }

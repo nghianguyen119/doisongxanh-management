@@ -49,6 +49,14 @@ export const BUTTON_PAYLOAD = {
   },
 };
 
+/**
+ * Task-less button commands. Unlike `task:*` payloads these work from any
+ * conversation state, so they must not collide with typed messages.
+ */
+export const COMMAND_PAYLOAD = {
+  myTasks: "cmd:my_tasks",
+} as const;
+
 // ---------------------------------------------------------------------------
 // Raw Zalo webhook shapes (partial — only the fields we read).
 // Docs: https://developers.zalo.me/docs/api/official-account-api/webhook

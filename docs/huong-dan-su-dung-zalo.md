@@ -100,7 +100,9 @@ Nếu biết Zalo user id của nhân viên, dán vào ô **Cách 2 · Nhập Za
 3. Bấm **Tạo công việc**.
 
 Ngay sau khi giao, nhân viên nhận được một **thẻ công việc** trên Zalo gồm tiêu
-đề, mô tả, mức ưu tiên, hạn và các nút hành động.
+đề, mô tả, mức ưu tiên, hạn và các nút hành động. Mỗi việc có **mã việc**
+`DSX-<số>` tăng tự động (ví dụ `DSX-1`, `DSX-2`) hiển thị trên thẻ Zalo, menu
+chọn việc và trong portal — dùng mã này khi cần đối chiếu.
 
 Lưu ý:
 
@@ -121,7 +123,7 @@ Lưu ý:
 | ▶️ **Bắt đầu** | Nhân viên khởi công | Công việc → *Đang làm* |
 | ✔️ **Đã xong** | Báo hoàn thành (có thể bấm ngay khi vừa nhận việc) | Công việc → *Đã xong* ngay, chờ quản lý xác nhận |
 | ⚠️ **Báo sự cố** | Có vấn đề | Bot hỏi mô tả sự cố |
-| ℹ️ **Chi tiết** | Xem lại thông tin | Bot gửi lại thẻ công việc |
+| 📋 **Việc của tôi** | Xem/đổi việc đang trao đổi | Bot gửi menu nút tất cả việc đang mở |
 
 > Không còn bước **Nhận việc**: việc đã giao mặc nhiên thuộc về nhân viên, họ
 > bấm *Bắt đầu* hoặc *Đã xong* luôn.
@@ -137,14 +139,14 @@ mô tả sau). Công việc chuyển sang *Gặp sự cố* để quản lý x�
 nhắn/ảnh gửi cho OA được gắn vào công việc đó (quản lý xem ở mục *Diễn tiến*).
 
 **Khi có nhiều việc đang mở:**
-1. Nhân viên nhắn/gửi ảnh → bot trả về danh sách việc kèm số thứ tự (ưu tiên
-   việc gần hạn nhất, tối đa 10 việc mỗi lần).
-2. Nhân viên trả lời **số** (ví dụ `2`) để chọn việc; nội dung/ảnh được gắn vào
-   đúng việc đó.
+1. Nhân viên nhắn/gửi ảnh → bot gửi **menu nút** với tên từng việc (ưu tiên
+   việc gần hạn nhất, tối đa 3 việc mỗi lần).
+2. Nhân viên **bấm vào việc** muốn chọn; nội dung/ảnh gửi trước đó được gắn
+   vào đúng việc đó. Còn việc khác thì bấm **⬇️ Xem thêm**.
 3. Việc vừa chọn trở thành việc **đang trao đổi**: các tin nhắn/ảnh tiếp theo
    tự động gắn vào việc đó, không cần chọn lại, cho tới khi việc kết thúc.
-4. Gõ `ds` để xem lại danh sách, `đổi việc` để chọn việc khác. Bấm nút trên thẻ
-   công việc cũng đổi việc đang trao đổi.
+4. Bấm **📋 Việc của tôi** trên bất kỳ thẻ nào để mở lại menu và đổi việc đang
+   trao đổi. Vẫn có thể gõ `ds` hoặc trả lời số thứ tự nếu muốn.
 
 Nếu chọn một việc đã kết thúc, bot tự làm mới danh sách để nhân viên chọn lại.
 
@@ -223,7 +225,7 @@ công việc tối đa **1 lần/12 giờ**. Điều kiện để nhắc đượ
 | Nhân viên bấm nút cũ và báo "công việc đã kết thúc" | Thẻ đó thuộc công việc đã *Đã xác nhận* hoặc *Đã huỷ*. Đây là hành vi đúng để tránh cập nhật nhầm. |
 | Muốn đổi tài khoản Zalo cho nhân viên | Mở nhân viên → **Hủy kết nối** → kết nối lại bằng mã mời hoặc Zalo ID mới. |
 | Khách hàng nhắn tin cho OA | Bot tự động cảm ơn và ghi lại. Xem ở **Zalo OA → Tin nhắn khách hàng** rồi trả lời thủ công trong ứng dụng Zalo OA. Tài khoản này **không** trở thành nhân viên nếu chưa có mã mời. |
-| Nhân viên có nhiều việc, nhắn tin/ảnh mà không bấm nút | Bot gửi danh sách việc kèm số; nhân viên trả lời **số** tương ứng. Sau đó các tin tiếp theo tự gắn vào việc đã chọn; gõ `ds` hoặc `đổi việc` để đổi. |
+| Nhân viên có nhiều việc, nhắn tin/ảnh mà không bấm nút | Bot gửi menu nút tên từng việc; nhân viên bấm việc muốn chọn (hoặc **⬇️ Xem thêm**). Sau đó các tin tiếp theo tự gắn vào việc đã chọn. |
 | Nhân viên muốn kèm ảnh/ghi chú khi hoàn thành | Ảnh/ghi chú phải gửi **trước** khi bấm *Đã xong*; chúng được gắn vào việc đang trao đổi. |
 | Nhân viên phản hồi mà không thấy gắn vào việc nào | Nhân viên có nhiều việc đang mở; yêu cầu họ bấm nút trên đúng thẻ công việc. |
 | Nghi ngờ nhân viên đã nghỉ việc | Đặt trạng thái **Ngừng** để dừng nhận tin; hệ thống cảnh báo nếu còn việc đang mở — nhớ giao lại cho người khác trước. |

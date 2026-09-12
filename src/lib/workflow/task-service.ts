@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, taskAttachment, taskEvent } from "@/db/schema";
-import { OPEN_TASK_STATUSES } from "@/lib/labels";
+import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
 import type { TaskCardInput } from "./bot-copy";
 import * as notify from "./notification-service";
 import type {
@@ -38,6 +38,7 @@ export type TaskResult =
 function toCard(t: TaskRow): TaskCardInput {
   return {
     id: t.id,
+    ref: taskRef(t.refNo),
     title: t.title,
     description: t.description,
     priority: t.priority,
@@ -319,7 +320,7 @@ export async function verifyTask(input: {
     input.taskId,
     "verified",
     await assigneeZaloId(res.task),
-    (z) => notify.notifyVerified(z),
+    (z) => notify.notifyVerified(toCard(res.task), z),
   );
   return { ...res, zalo };
 }
@@ -341,7 +342,7 @@ export async function cancelTask(input: {
     input.taskId,
     "cancelled",
     await assigneeZaloId(res.task),
-    (z) => notify.notifyCancelled(z),
+    (z) => notify.notifyCancelled(toCard(res.task), z),
   );
   return { ...res, zalo };
 }
@@ -362,7 +363,7 @@ export async function addManagerComment(input: {
     input.taskId,
     "comment",
     await assigneeZaloId(t),
-    (z) => notify.forwardManagerComment(z, input.text),
+    (z) => notify.forwardManagerComment(toCard(t), z, input.text),
   );
   return { ok: true, task: t, zalo };
 }
@@ -462,7 +463,7 @@ export async function completeTask(input: {
     input.taskId,
     "done",
     await assigneeZaloId(res.task),
-    (z) => notify.notifyDoneAck(z),
+    (z) => notify.notifyDoneAck(toCard(res.task), z),
   );
   return { ...res, zalo };
 }
@@ -487,7 +488,7 @@ export async function reportIssue(input: {
     input.taskId,
     "issue",
     await assigneeZaloId(res.task),
-    (z) => notify.notifyIssueAck(z),
+    (z) => notify.notifyIssueAck(toCard(res.task), z),
   );
   return { ...res, zalo };
 }

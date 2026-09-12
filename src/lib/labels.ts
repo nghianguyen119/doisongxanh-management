@@ -11,6 +11,11 @@ type TaskPriority = (typeof taskPriority.enumValues)[number];
 type EmployeeStatus = (typeof employeeStatus.enumValues)[number];
 type TaskEventType = (typeof taskEventType.enumValues)[number];
 
+/** Human-facing task reference shown in the portal and Zalo, e.g. `DSX-12`. */
+export function taskRef(refNo: number): string {
+  return `DSX-${refNo}`;
+}
+
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   assigned: "Cần làm",
   in_progress: "Đang làm",

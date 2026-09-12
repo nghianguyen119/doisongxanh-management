@@ -22,6 +22,7 @@ import type { Option } from "@/types/data-table"
 
 export interface TaskRow {
   id: string
+  ref: string
   title: string
   assignee: string
   priority: string
@@ -98,6 +99,9 @@ export function TasksTable({
               href={`/tasks/${row.original.id}`}
               className="font-medium hover:underline"
             >
+              <span className="text-muted-foreground mr-1.5 font-mono text-xs">
+                {row.original.ref}
+              </span>
               {row.original.title}
             </Link>
           ),

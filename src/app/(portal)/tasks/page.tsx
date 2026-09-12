@@ -12,6 +12,7 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
   TASK_STATUS_TONE,
+  taskRef,
 } from "@/lib/labels";
 import { isClosed } from "@/lib/workflow/task-status";
 import { PageHeader } from "@/components/ui";
@@ -40,6 +41,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     const closed = isClosed(t.status);
     return {
       id: t.id,
+      ref: taskRef(t.refNo),
       title: t.title,
       assignee: t.assignee?.name ?? "Chưa giao",
       priority: TASK_PRIORITY_LABEL[t.priority],

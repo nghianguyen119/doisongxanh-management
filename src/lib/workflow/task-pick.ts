@@ -1,11 +1,16 @@
 /**
  * Pure helpers for the multi-task conversation picker: when an employee has
- * several open tasks, free-form messages are answered with a numbered list and
- * the employee replies with a number. Kept free of DB/Zalo imports so the
- * parsing, ordering and paging rules are unit-testable.
+ * several open tasks, free-form messages are answered with a button menu and
+ * the employee taps the task. A numbered reply still works as a fallback for
+ * old messages. Kept free of DB/Zalo imports so the parsing, ordering and
+ * paging rules are unit-testable.
  */
 
-export const TASK_PICK_PAGE_SIZE = 10;
+/**
+ * Three per page leaves room for a "Xem thêm" button in the same Zalo message
+ * (CS messages allow at most 4-5 buttons).
+ */
+export const TASK_PICK_PAGE_SIZE = 3;
 
 /** 1-based selection, accepts "2", "số 2" or "so 2". Null if out of range. */
 export function parseTaskPick(text: string, optionCount: number): number | null {

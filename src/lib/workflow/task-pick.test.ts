@@ -61,17 +61,16 @@ describe("sortOpenTasks", () => {
 });
 
 describe("pickPage", () => {
-  const rows = Array.from({ length: 23 }, (_, i) => i + 1);
+  const rows = Array.from({ length: 8 }, (_, i) => i + 1);
 
-  it("slices ten per page and reports the rest", () => {
+  it("slices three per page and reports the rest", () => {
     const first = pickPage(rows, 0);
-    expect(first.slice).toHaveLength(10);
-    expect(first.slice[0]).toBe(1);
+    expect(first.slice).toEqual([1, 2, 3]);
     expect(first.hasMore).toBe(true);
-    expect(first.total).toBe(23);
+    expect(first.total).toBe(8);
 
     const last = pickPage(rows, 2);
-    expect(last.slice).toEqual([21, 22, 23]);
+    expect(last.slice).toEqual([7, 8]);
     expect(last.hasMore).toBe(false);
   });
 

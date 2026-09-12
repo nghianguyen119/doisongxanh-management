@@ -8,6 +8,7 @@ import {
   BTN,
   copy,
   taskCardText,
+  taskNoticeText,
   type TaskCardInput,
 } from "@/lib/workflow/bot-copy";
 
@@ -23,7 +24,6 @@ export type ZaloTestKind =
   | "assigned"
   | "updated"
   | "started"
-  | "detail"
   | "reminder_due"
   | "reminder_overdue"
   | "request_user_info";
@@ -33,7 +33,6 @@ const ZALO_TEST_KINDS = [
   "assigned",
   "updated",
   "started",
-  "detail",
   "reminder_due",
   "reminder_overdue",
   "request_user_info",
@@ -53,6 +52,7 @@ const inputSchema = z.object({
 function testTask(): TaskCardInput {
   return {
     id: "00000000-0000-4000-8000-000000000000",
+    ref: "DSX-0",
     title: "Việc kiểm thử từ trang Zalo OA",
     description: "Tin gửi thử, không phải việc thật.",
     priority: "normal",
@@ -70,36 +70,47 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
     case "assigned":
       return client.sendButtons(
         zaloUserId,
-        taskCardText(t, copy.assignedHeading),
-        [BTN.start(t.id), BTN.done(t.id), BTN.issue(t.id), BTN.detail(t.id)],
+        taskCardText(t, {
+          heading: copy.assignedHeading,
+          closing: copy.assignedClosing,
+        }),
+        [BTN.start(t.id), BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
       );
     case "updated":
       return client.sendButtons(
         zaloUserId,
-        taskCardText(t, copy.updatedHeading),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.detail(t.id)],
+        taskCardText(t, {
+          heading: copy.updatedHeading,
+          closing: copy.updatedClosing,
+        }),
+        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
       );
     case "started":
-      return client.sendButtons(zaloUserId, copy.startedAck, [
-        BTN.done(t.id),
-        BTN.issue(t.id),
-      ]);
-    case "detail":
-      return client.sendButtons(zaloUserId, taskCardText(t, copy.detailHeading), [
-        BTN.done(t.id),
-        BTN.issue(t.id),
-      ]);
+      return client.sendButtons(
+        zaloUserId,
+        taskNoticeText(t, {
+          heading: copy.startedHeading,
+          closing: copy.startedClosing,
+        }),
+        [BTN.done(t.id), BTN.issue(t.id)],
+      );
     case "reminder_due":
       return client.sendButtons(
         zaloUserId,
-        taskCardText(t, copy.reminderDue(t.title)),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.detail(t.id)],
+        taskCardText(t, {
+          heading: copy.reminderDueHeading,
+          closing: copy.reminderClosing,
+        }),
+        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
       );
     case "reminder_overdue":
       return client.sendButtons(
         zaloUserId,
-        taskCardText(t, copy.reminderOverdue(t.title)),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.detail(t.id)],
+        taskCardText(t, {
+          heading: copy.reminderOverdueHeading,
+          closing: copy.reminderClosing,
+        }),
+        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
       );
     case "request_user_info":
       return client.requestUserInfo(zaloUserId, copy.requestInfoTitle);

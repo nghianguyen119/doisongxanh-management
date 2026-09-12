@@ -73,6 +73,9 @@ function TaskCard({
           href={`/tasks/${task.id}`}
           className="line-clamp-2 text-sm leading-snug font-medium hover:underline"
         >
+          <span className="text-muted-foreground mr-1.5 font-mono text-[10px]">
+            {task.ref}
+          </span>
           {task.title}
         </Link>
         <span

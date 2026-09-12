@@ -1,5 +1,5 @@
 import { formatVN } from "@/lib/time";
-import { BUTTON_PAYLOAD, type ZaloButton } from "@/lib/zalo/types";
+import { BUTTON_PAYLOAD, COMMAND_PAYLOAD, type ZaloButton } from "@/lib/zalo/types";
 
 /**
  * Every Vietnamese string the Zalo bot sends lives here so copy can be tuned
@@ -7,6 +7,8 @@ import { BUTTON_PAYLOAD, type ZaloButton } from "@/lib/zalo/types";
  */
 export interface TaskCardInput {
   id: string;
+  /** Human-facing reference, e.g. `DSX-12`. */
+  ref: string;
   title: string;
   description?: string | null;
   priority: "low" | "normal" | "high" | "urgent";
@@ -23,48 +25,51 @@ const PRIORITY_LABEL: Record<TaskCardInput["priority"], string> = {
 function fmtDue(due?: Date | null) {
   // Always Vietnam wall time — the employee reading this is in Vietnam even
   // when the server is not. See src/lib/time.ts.
-  return due ? formatVN(due) : "Không có hạn";
+  return due ? formatVN(due) : "Không có";
 }
 
-export function taskCardText(t: TaskCardInput, heading: string): string {
-  return [
-    heading,
-    "",
-    `📋 ${t.title}`,
-    t.description ? `📝 ${t.description}` : null,
-    `⚡ Mức ưu tiên: ${PRIORITY_LABEL[t.priority]}`,
-    `⏰ Hạn: ${fmtDue(t.dueAt)}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-export interface TaskListEntry {
-  /** 1-based position inside the current page. */
-  index: number;
+/** Anything that can be named in a message: `DSX-12 · Tưới cây sảnh`. */
+export interface TaskLabelInput {
+  ref: string;
   title: string;
-  dueAt?: Date | null;
+}
+
+export interface NoticeCopy {
+  heading: string;
+  closing?: string;
+}
+
+/**
+ * Full task card (assignment / update / reminder): heading, reference + title,
+ * priority, due date, optional description and closing line.
+ */
+export function taskCardText(t: TaskCardInput, notice: NoticeCopy): string {
+  const lines = [
+    notice.heading,
+    "",
+    `${t.ref} · ${t.title}`,
+    `Ưu tiên: ${PRIORITY_LABEL[t.priority]}`,
+    `Hạn hoàn thành: ${fmtDue(t.dueAt)}`,
+  ];
+  if (t.description) lines.push("", `Mô tả: ${t.description}`);
+  if (notice.closing) lines.push("", notice.closing);
+  return lines.join("\n");
+}
+
+/** Short lifecycle notice: heading, reference + title, optional closing line. */
+export function taskNoticeText(t: TaskLabelInput, notice: NoticeCopy): string {
+  const lines = [notice.heading, "", `${t.ref} · ${t.title}`];
+  if (notice.closing) lines.push("", notice.closing);
+  return lines.join("\n");
 }
 
 function shortTitle(title: string, max = 60) {
   return title.length > max ? `${title.slice(0, max - 1)}…` : title;
 }
 
-/** Numbered "which task?" message for an employee with several open tasks. */
-export function taskPickText(
-  entries: TaskListEntry[],
-  { total, hasMore }: { total: number; hasMore: boolean },
-): string {
-  return [
-    `📋 Bạn đang có ${total} việc đang mở. Trả lời SỐ để chọn việc:`,
-    ...entries.map(
-      (e) =>
-        `${e.index}. ${shortTitle(e.title)}${e.dueAt ? ` (hạn ${fmtDue(e.dueAt)})` : ""}`,
-    ),
-    hasMore ? "…và còn việc khác, gõ “ds” để xem tiếp." : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+/** `“Task title” ` when known, empty otherwise (stale/no-task fallbacks). */
+function named(title?: string) {
+  return title ? `“${title}” ` : "";
 }
 
 export const BTN = {
@@ -80,9 +85,20 @@ export const BTN = {
     title: "⚠️ Báo sự cố",
     payload: BUTTON_PAYLOAD.encode("issue", id),
   }),
-  detail: (id: string): ZaloButton => ({
-    title: "ℹ️ Chi tiết",
-    payload: BUTTON_PAYLOAD.encode("detail", id),
+  /** Opens the button menu of every open task; works from any state. */
+  myTasks: (): ZaloButton => ({
+    title: "📋 Việc của tôi",
+    payload: COMMAND_PAYLOAD.myTasks,
+  }),
+  /** One task in the "which task?" menu; title is the task's own name. */
+  pick: (id: string, title: string, ref?: string): ZaloButton => ({
+    title: shortTitle(ref ? `${ref} · ${title}` : title, 30),
+    payload: BUTTON_PAYLOAD.encode("pick", id),
+  }),
+  /** Next page of the menu. The plain "ds" command keeps old code paths. */
+  more: (): ZaloButton => ({
+    title: "⬇️ Xem thêm",
+    payload: "ds",
   }),
 };
 
@@ -108,12 +124,13 @@ export const copy = {
     "Tài khoản của bạn đang tạm ngưng. Vui lòng liên hệ quản lý để mở lại.",
   /** Sent right after an employee links, before their practice task. */
   onboardingGuide:
-    "🌿 Hướng dẫn nhận việc qua Zalo:\n" +
-    "• Khi có việc, bạn nhận thẻ công việc tại đây.\n" +
-    "• Bấm ▶️ Bắt đầu khi khởi công, ✔️ Đã xong khi làm xong, ⚠️ Báo sự cố khi " +
-    "vướng mắc, ℹ️ Chi tiết để xem lại.\n" +
-    "• Muốn kèm ảnh/ghi chú, bạn gửi ảnh/ghi chú cho OA trước khi bấm Đã xong.\n" +
-    "• Cứ thoải mái thử với việc làm quen bên dưới — không ảnh hưởng công việc thật.",
+    "🌿 Hướng dẫn nhận việc qua Zalo\n" +
+    "\n" +
+    "• Công việc mới sẽ hiện thành thẻ tại đây.\n" +
+    "• Bấm ▶️ Bắt đầu khi khởi công, ✔️ Đã xong khi hoàn thành, ⚠️ Báo sự cố khi vướng mắc.\n" +
+    "• Bấm 📋 Việc của tôi để xem và đổi việc đang trao đổi.\n" +
+    "• Gửi ảnh/ghi chú trước khi bấm Đã xong để đính kèm vào công việc.\n" +
+    "• Việc làm quen bên dưới để bạn thử — không ảnh hưởng công việc thật.",
 
   // Client (any Zalo user not linked to an employee)
   clientAutoReply:
@@ -125,47 +142,56 @@ export const copy = {
     "Cảm ơn bạn đã chia sẻ thông tin. Chúng tôi sẽ liên hệ với bạn sớm nhất. 🌿",
 
   // Assignment lifecycle
-  assignedHeading: "🔔 Bạn có công việc mới:",
-  updatedHeading: "✏️ Công việc vừa được cập nhật:",
-  detailHeading: "ℹ️ Chi tiết công việc:",
-  startedAck: "Đã bắt đầu công việc. Chúc bạn làm việc thuận lợi! 💪",
-  doneAck:
-    "Cảm ơn bạn! ✔️ Công việc đã được báo hoàn thành. Quản lý sẽ kiểm tra và xác nhận.",
-  askIssueText: "Bạn đang gặp vấn đề gì? Hãy nhập mô tả ngắn gọn.",
-  issueAck: "Đã gửi báo cáo sự cố cho quản lý. ⚠️ Vui lòng chờ phản hồi.",
-  verifiedNotice: "Công việc của bạn đã được xác nhận HOÀN THÀNH. Cảm ơn bạn! 🎉",
-  cancelledNotice: "Công việc đã được HUỶ bởi quản lý.",
-  reminderDue: (title: string) => `⏰ Nhắc việc: “${title}” sắp đến hạn.`,
-  reminderOverdue: (title: string) =>
-    `🔴 Công việc “${title}” đã QUÁ HẠN. Vui lòng cập nhật giúp quản lý.`,
+  assignedHeading: "📌 Công việc mới được giao",
+  assignedClosing:
+    "Vui lòng kiểm tra chi tiết công việc và cập nhật trạng thái khi hoàn thành.",
+  updatedHeading: "✏️ Công việc vừa được cập nhật",
+  updatedClosing: "Vui lòng kiểm tra lại thông tin công việc.",
+  startedHeading: "▶️ Đã bắt đầu công việc",
+  startedClosing: "Chúc bạn làm việc thuận lợi! 💪",
+  doneHeading: "✅ Đã báo hoàn thành",
+  doneClosing: "Cảm ơn bạn! Quản lý sẽ kiểm tra và xác nhận.",
+  issueHeading: "⚠️ Báo sự cố",
+  issueClosing: "Bạn đang gặp vấn đề gì? Hãy nhập mô tả ngắn gọn.",
+  issueAckHeading: "⚠️ Đã ghi nhận sự cố",
+  issueAckClosing: "Quản lý sẽ xem và phản hồi sớm. Vui lòng chờ phản hồi.",
+  verifiedHeading: "🎉 Công việc đã hoàn thành",
+  verifiedClosing: "Quản lý đã xác nhận. Cảm ơn bạn!",
+  cancelledHeading: "🚫 Công việc đã huỷ",
+  cancelledClosing: "Quản lý đã huỷ công việc này.",
+  reminderDueHeading: "⏰ Công việc sắp đến hạn",
+  reminderOverdueHeading: "🔴 Công việc đã quá hạn",
+  reminderClosing: "Vui lòng cập nhật tiến độ giúp quản lý.",
 
   /** A stale Zalo button from an already-closed task was tapped. */
-  taskClosed:
-    "Công việc này đã kết thúc nên không cập nhật được nữa. Nếu cần, vui lòng báo quản lý.",
+  taskClosed: (label?: string) =>
+    `Công việc ${named(label)}đã kết thúc nên không cập nhật được nữa. Nếu cần, vui lòng báo quản lý.`,
   taskNotYours: "Công việc này hiện không thuộc về bạn.",
   /** The task moved while the tap was in flight; ask for a fresh look. */
-  taskStateChanged:
-    "Công việc vừa thay đổi trạng thái. Bạn xem thẻ công việc mới nhất giúp mình nhé.",
+  taskStateChanged: (label?: string) =>
+    `Công việc ${named(label)}vừa thay đổi trạng thái. Bạn xem thẻ công việc mới nhất giúp mình nhé.`,
 
-  managerComment: (text: string) => `💬 Quản lý: ${text}`,
-  commentAck: (title: string) => `Đã ghi nhận vào việc “${title}”. 📨`,
+  managerCommentHeading: "💬 Tin nhắn từ quản lý",
+  commentAckHeading: "📝 Đã ghi nhận ghi chú",
 
   // Choosing between several open tasks
+  pickMenu: (total: number) =>
+    `📋 Danh sách việc đang mở\n\nBạn đang có ${total} việc. Bấm chọn việc bên dưới:`,
   taskPickInvalid:
-    "Mình chưa hiểu. Vui lòng trả lời bằng SỐ trong danh sách (ví dụ: 2).",
+    "Mình chưa hiểu. Bạn bấm vào việc muốn chọn bên trên, hoặc trả lời số thứ tự của việc đó.",
   taskPickImageHeld:
-    "Đã nhận ảnh. Vui lòng trả lời SỐ trong danh sách để chọn việc cho ảnh này.",
-  taskPicked: (title: string) =>
-    `Đã chọn việc “${title}”. Bạn nhắn tiếp ở đây nhé.`,
-  onlyOneTask: (title: string) =>
-    `Bạn chỉ có 1 việc đang mở: “${title}”. Cứ nhắn ở đây để cập nhật.`,
+    "Đã nhận ảnh. Bạn vui lòng chọn việc cho ảnh này ở danh sách bên trên.",
+  pickedHeading: "📋 Đã chọn việc",
+  pickedClosing: "Bạn nhắn tiếp ở đây để cập nhật nhé.",
+  oneTaskHeading: "📋 Bạn đang có 1 việc mở",
+  oneTaskClosing: "Cứ nhắn ở đây để cập nhật.",
 
   // Fallbacks
   noActiveTask:
-    "Hiện bạn không có công việc nào đang mở. Khi có việc mới bạn sẽ nhận thông báo tại đây.",
+    "Hiện bạn không có công việc nào đang mở. Khi có việc mới, thẻ công việc sẽ xuất hiện tại đây.",
   help:
-    "Bạn có thể: nhắn tin/gửi ảnh để cập nhật việc, gõ “ds” để xem danh sách " +
-    "việc đang mở, hoặc bấm nút trên thẻ công việc.",
+    "Bạn có thể: bấm nút trên thẻ công việc, nhắn tin/gửi ảnh để cập nhật việc, " +
+    "hoặc bấm 📋 Việc của tôi để xem danh sách việc đang mở.",
   genericAck: "Đã nhận. ✅",
 
   /** Title of the Zalo `request_user_info` card (sent from the tester). */

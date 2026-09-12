@@ -215,7 +215,7 @@ Notes:
    employee flips to *Đang hoạt động* with the Zalo id shown. The OA then sends
    the onboarding guide plus a practice task (safe to tap around).
 5. `/tasks/new` → create a task assigned to that employee → the OA delivers the
-   card with **▶️ Bắt đầu / ✔️ Đã xong / ⚠️ Báo sự cố / ℹ️ Chi tiết** buttons.
+   card with **▶️ Bắt đầu / ✔️ Đã xong / ⚠️ Báo sự cố / 📋 Việc của tôi** buttons.
 6. Send a photo (or reply with a note), then tap **▶️ Bắt đầu** → **✔️ Đã xong**
    → the portal task moves to *Đã xong* with the photo in the gallery and every
    step in the timeline. Assignment needs no acceptance step, and *Đã xong*
@@ -250,7 +250,7 @@ for sign-in). A full inbound event produces a chain like this:
 [zalo:webhook] received sig=ok event=user_send_text parsed=text sender=123 msg_id=abc in 3ms
 [zalo:inbound] kind=text from=123 text="task:done:…"
 [zalo:task] action=done task=… employee=… status=in_progress
-[zalo:send] -> text to=123 text="Cảm ơn bạn! ✔️ Công việc đã được báo hoàn thành…"
+[zalo:send] -> text to=123 text="✅ Đã báo hoàn thành DSX-1 · Tưới cây sảnh Cảm ơn bạn! Quản lý sẽ kiểm tra…"
 [zalo:send] <- ok text to=123 http=200 message_id=… in 412ms
 [zalo:inbound] handled kind=text from=123 in 780ms
 ```

@@ -50,6 +50,13 @@
       "when": 1789204739213,
       "tag": "0006_peaceful_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789211241833,
+      "tag": "0007_plain_red_hulk",
+      "breakpoints": true
     }
   ]
 }

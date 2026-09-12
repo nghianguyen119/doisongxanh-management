@@ -3,8 +3,10 @@ import {
   index,
   jsonb,
   pgTable,
+  serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import {
@@ -21,6 +23,8 @@ export const task = pgTable(
   "task",
   {
     id: uuid().primaryKey().defaultRandom(),
+    /** Human-facing code (`DSX-1`). DB-generated so parallel creates are safe. */
+    refNo: serial().notNull(),
     title: text().notNull(),
     description: text(),
     status: taskStatus().notNull().default("assigned"),
@@ -39,6 +43,7 @@ export const task = pgTable(
     index("task_status_idx").on(t.status),
     index("task_assignee_idx").on(t.assigneeId),
     index("task_due_idx").on(t.dueAt),
+    uniqueIndex("task_ref_no_unique").on(t.refNo),
   ],
 );
 

@@ -5,6 +5,8 @@ export type KanbanPriority = (typeof taskPriority.enumValues)[number]
 
 export interface KanbanTask {
   id: string
+  /** Human-facing reference, e.g. `DSX-12`. */
+  ref: string
   title: string
   description: string | null
   /** status groups two statuses into the "Đang làm" column */

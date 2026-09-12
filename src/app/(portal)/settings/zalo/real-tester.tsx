@@ -17,7 +17,6 @@ const BUTTON_TEMPLATES: { kind: ZaloTestKind; label: string }[] = [
   { kind: "assigned", label: "🔔 Giao việc mới" },
   { kind: "updated", label: "✏️ Cập nhật việc" },
   { kind: "started", label: "▶️ Đã bắt đầu" },
-  { kind: "detail", label: "ℹ️ Chi tiết việc" },
   { kind: "reminder_due", label: "⏰ Nhắc sắp hạn" },
   { kind: "reminder_overdue", label: "🔴 Nhắc quá hạn" },
 ];

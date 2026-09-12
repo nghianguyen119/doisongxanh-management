@@ -26,6 +26,7 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
   TASK_STATUS_TONE,
+  taskRef,
 } from "@/lib/labels";
 import {
   assignTaskAction,
@@ -267,6 +268,10 @@ export default async function TaskDetailPage({
           <Card className="gap-0 p-5">
             <h2 className="mb-3 font-semibold">Thông tin</h2>
             <dl className="space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-muted-foreground">Mã việc</dt>
+                <dd className="font-mono">{taskRef(t.refNo)}</dd>
+              </div>
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-muted-foreground">Trạng thái</dt>
                 <dd>

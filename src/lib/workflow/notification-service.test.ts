@@ -16,17 +16,27 @@ const { notifyAssigned, notifyDoneAck } = await import(
   "./notification-service"
 );
 
+const doneTask = {
+  id: "t1",
+  ref: "DSX-1",
+  title: "Tưới cây",
+  priority: "normal" as const,
+  dueAt: null,
+};
+
 describe("notification-service", () => {
   it("reports a successful send", async () => {
     mocks.sendText.mockResolvedValueOnce({ messageId: "1" });
-    await expect(notifyDoneAck("u1")).resolves.toEqual({ ok: true });
+    await expect(notifyDoneAck(doneTask, "u1")).resolves.toEqual({
+      ok: true,
+    });
   });
 
   it("reports the failure reason instead of throwing", async () => {
     mocks.sendText.mockRejectedValueOnce(
       new Error("Zalo send failed: outside the 7-day window"),
     );
-    await expect(notifyDoneAck("u1")).resolves.toEqual({
+    await expect(notifyDoneAck(doneTask, "u1")).resolves.toEqual({
       ok: false,
       error: "Zalo send failed: outside the 7-day window",
     });
@@ -35,7 +45,13 @@ describe("notification-service", () => {
   it("uses the button template for assignment cards", async () => {
     mocks.sendButtons.mockResolvedValueOnce({ messageId: "2" });
     const res = await notifyAssigned(
-      { id: "t1", title: "Tưới cây", priority: "normal", dueAt: null },
+      {
+        id: "t1",
+        ref: "DSX-1",
+        title: "Tưới cây",
+        priority: "normal",
+        dueAt: null,
+      },
       "u1",
     );
     expect(res).toEqual({ ok: true });

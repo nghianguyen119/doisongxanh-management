@@ -153,9 +153,7 @@ test.describe("task lifecycle over Zalo", () => {
     );
 
     await simulatorSendText(page, `task:done:${taskId}`);
-    await expect(
-      page.getByText(/đã được báo hoàn thành/).first()
-    ).toBeVisible();
+    await expect(page.getByText(/Đã báo hoàn thành/).first()).toBeVisible();
     await expect.poll(async () => (await taskRow(taskId))?.status).toBe("done");
     expect((await taskRow(taskId))?.completed_at).not.toBeNull();
 
@@ -230,17 +228,19 @@ test.describe("task lifecycle over Zalo", () => {
 
     await simulatorOpen(page, zaloUserId);
     await simulatorSendText(page, "đã tưới xong");
-    await expect(page.getByText(/Trả lời SỐ/).first()).toBeVisible();
+    await expect(
+      page.getByText(/Bấm chọn việc bên dưới/).first()
+    ).toBeVisible();
     await expect(page.getByText(titleA, { exact: false }).first()).toBeVisible();
     await expect(page.getByText(titleB, { exact: false }).first()).toBeVisible();
 
-    // Task B was assigned second, so it is option 2.
-    await simulatorSendText(page, "2");
+    // A real tap sends the button payload back; the simulator sends it as text.
+    await simulatorSendText(page, `task:pick:${taskB}`);
     await expect(
       page.getByText(new RegExp(`Đã ghi nhận vào việc.*${titleB}`)).first()
     ).toBeVisible();
 
-    // The pick sticks: the next note goes to B without a new list.
+    // The pick sticks: the next note goes to B without a new menu.
     await simulatorSendText(page, "thêm một ghi chú");
     await expect(
       page.getByText(new RegExp(`Đã ghi nhận vào việc.*${titleB}`)).nth(1)
