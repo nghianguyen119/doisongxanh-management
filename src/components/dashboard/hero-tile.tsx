@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { TZDate } from "@date-fns/tz";
+import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import { OPEN_TASK_STATUSES } from "@/lib/labels";
 import { APP_TZ, formatVN } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/lib/workflow/task-status";
+import type { ExtendedColumnFilter } from "@/types/data-table";
 import { BentoCard } from "./bento-card";
 
 const WEEKDAY_VI = [
@@ -19,6 +22,13 @@ function greetingFor(hour: number) {
   if (hour < 12) return "Chào buổi sáng";
   if (hour < 18) return "Chào buổi chiều";
   return "Chào buổi tối";
+}
+
+/** `/tasks` reads the `filters` JSON param (nuqs `parseAsJson`). */
+function tasksHref(filters: ExtendedColumnFilter[], sort?: string) {
+  const params = new URLSearchParams({ filters: JSON.stringify(filters) });
+  if (sort) params.set("sort", sort);
+  return `/tasks?${params.toString()}`;
 }
 
 function CompletionRing({
@@ -113,8 +123,18 @@ export function HeroTile({
             counts.done > 0 ? `, ${counts.done} việc chờ xác nhận` : ""
           }.`;
 
-  const stats: { label: string; value: number; tone: string }[] = [
-    { label: "Đang mở", value: open, tone: "text-foreground" },
+  const stats: {
+    label: string;
+    value: number;
+    tone: string;
+    href: string;
+  }[] = [
+    {
+      label: "Đang mở",
+      value: open,
+      tone: "text-foreground",
+      href: tasksHref([{ id: "status", value: OPEN_TASK_STATUSES }]),
+    },
     {
       label: "Quá hạn",
       value: overdueCount,
@@ -122,6 +142,7 @@ export function HeroTile({
         overdueCount > 0
           ? "text-red-600 dark:text-red-400"
           : "text-foreground",
+      href: tasksHref([{ id: "due", value: ["overdue"] }], "due.asc"),
     },
     {
       label: "Chờ xác nhận",
@@ -130,11 +151,13 @@ export function HeroTile({
         counts.done > 0
           ? "text-amber-600 dark:text-amber-400"
           : "text-foreground",
+      href: tasksHref([{ id: "status", value: ["done"] }]),
     },
     {
       label: "Đã xác nhận",
       value: counts.verified,
       tone: "text-emerald-600 dark:text-emerald-400",
+      href: tasksHref([{ id: "status", value: ["verified"] }]),
     },
   ];
 
@@ -162,23 +185,31 @@ export function HeroTile({
           <CompletionRing ratio={rate} percent={Math.round(rate * 100)} />
         </div>
 
-        <dl className="mt-auto grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/70 pt-6 @xl/main:grid-cols-4">
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t border-border/70 pt-5 @xl/main:grid-cols-4">
           {stats.map((stat) => (
-            <div key={stat.label}>
-              <dd
+            <Link
+              key={stat.label}
+              href={stat.href}
+              className="group rounded-xl p-2 transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <span
                 className={cn(
-                  "text-2xl font-semibold tracking-tight tabular-nums",
+                  "block text-2xl font-semibold tracking-tight tabular-nums",
                   stat.tone,
                 )}
               >
                 {stat.value}
-              </dd>
-              <dt className="mt-0.5 text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+              </span>
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
                 {stat.label}
-              </dt>
-            </div>
+                <ArrowRightIcon
+                  weight="bold"
+                  className="size-3 -translate-x-0.5 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100"
+                />
+              </span>
+            </Link>
           ))}
-        </dl>
+        </div>
       </div>
     </BentoCard>
   );

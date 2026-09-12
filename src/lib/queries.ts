@@ -118,6 +118,18 @@ function getStringArrayFilter(
   return Array.isArray(match?.value) ? match.value : [];
 }
 
+function hasFilterValue(
+  filters: ExtendedColumnFilter[] | null,
+  id: string,
+  value: string,
+): boolean {
+  const match = filters?.find((filter) => filter.id === id);
+  if (!match) return false;
+  return Array.isArray(match.value)
+    ? match.value.includes(value)
+    : match.value === value;
+}
+
 const isTaskStatus = (value: string): value is TaskStatus =>
   (taskStatus.enumValues as readonly string[]).includes(value);
 
@@ -140,6 +152,7 @@ export function normalizeTaskFilters(filters: ExtendedColumnFilter[] | null) {
     assigneeIds: getStringArrayFilter(filters, "assignee").filter((id) =>
       UUID_RE.test(id),
     ),
+    overdue: hasFilterValue(filters, "due", "overdue"),
   };
 }
 
@@ -195,9 +208,8 @@ function getTaskOrderBy(sort: string | null) {
 export async function listTasksPage(params: TableQueryParams) {
   const page = clampPage(params.page);
   const perPage = clampPerPage(params.perPage);
-  const { title, statuses, priorities, assigneeIds } = normalizeTaskFilters(
-    params.filters,
-  );
+  const { title, statuses, priorities, assigneeIds, overdue } =
+    normalizeTaskFilters(params.filters);
 
   const conditions = [];
   if (title) conditions.push(ilike(task.title, `%${escapeLike(title)}%`));
@@ -205,6 +217,11 @@ export async function listTasksPage(params: TableQueryParams) {
   if (priorities.length) conditions.push(inArray(task.priority, priorities));
   if (assigneeIds.length)
     conditions.push(inArray(task.assigneeId, assigneeIds));
+  if (overdue) {
+    // Mirrors the dashboard "Quá hạn" tile: open tasks past their deadline.
+    conditions.push(inArray(task.status, OPEN_TASK_STATUSES));
+    conditions.push(lt(task.dueAt, new Date()));
+  }
   const where = conditions.length ? and(...conditions) : undefined;
 
   const [totalRows] = await db.select({ n: count() }).from(task).where(where);

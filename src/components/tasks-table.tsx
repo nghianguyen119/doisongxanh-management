@@ -47,6 +47,8 @@ const PRIORITY_OPTIONS: Option[] = Object.entries(TASK_PRIORITY_LABEL).map(
   ([value, label]) => ({ value, label })
 )
 
+const DUE_OPTIONS: Option[] = [{ value: "overdue", label: "Quá hạn" }]
+
 const columnHelper = createColumnHelper<typeof dataTableFeatures, TaskRow>()
 
 export function TasksTable({
@@ -154,9 +156,15 @@ export function TasksTable({
               {row.original.due}
             </div>
           ),
-          meta: { label: "Hạn" },
+          enableColumnFilter: true,
+          meta: {
+            label: "Hạn",
+            variant: "multiSelect",
+            options: DUE_OPTIONS,
+          },
         }),
         columnHelper.accessor("statusLabel", {
+          id: "status",
           header: ({ column }) => (
             <DataTableColumnHeader column={column} label="Trạng thái" />
           ),

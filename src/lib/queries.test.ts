@@ -29,6 +29,7 @@ describe("normalizeTaskFilters", () => {
       statuses: ["in_progress"],
       priorities: ["high"],
       assigneeIds: ["11111111-2222-3333-4444-555555555555"],
+      overdue: false,
     });
   });
 
@@ -38,10 +39,26 @@ describe("normalizeTaskFilters", () => {
       statuses: [],
       priorities: [],
       assigneeIds: [],
+      overdue: false,
     });
     expect(
       normalizeTaskFilters([{ id: "status", value: "done" }]).statuses,
     ).toEqual([]);
+  });
+
+  it("reads the overdue marker from the due-date filter", () => {
+    expect(
+      normalizeTaskFilters([{ id: "due", value: ["overdue"] }]).overdue,
+    ).toBe(true);
+    expect(
+      normalizeTaskFilters([{ id: "due", value: "overdue" }]).overdue,
+    ).toBe(true);
+    expect(normalizeTaskFilters([{ id: "due", value: [] }]).overdue).toBe(
+      false,
+    );
+    expect(normalizeTaskFilters([{ id: "due", value: ["soon"] }]).overdue).toBe(
+      false,
+    );
   });
 });
 
