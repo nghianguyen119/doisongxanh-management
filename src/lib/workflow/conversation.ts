@@ -69,6 +69,9 @@ function isListCommand(text: string) {
   return LIST_COMMANDS.includes(text.trim().toLowerCase());
 }
 
+/** Dedupe key for list/menu taps; "Xem thêm" sends the plain "ds" payload. */
+const LIST_TAP_KEY = "cmd:list";
+
 async function say(zaloUserId: string, text: string) {
   await getZaloClient().sendText(zaloUserId, text);
 }
@@ -204,6 +207,35 @@ async function mergeContext(
       target: zaloConversation.zaloUserId,
       set: { context, updatedAt: new Date() },
     });
+}
+
+/**
+ * Runs a button/command reply at most once per dedupe window. Zalo delivers a
+ * rapid burst of taps on "Xem thêm" / "Việc của tôi" as a burst of identical
+ * messages; without this each tap answers with another full menu.
+ */
+async function oncePerTap(
+  zaloUserId: string,
+  tapKey: string,
+  run: (tap: TapMark) => Promise<unknown>,
+) {
+  const now = Date.now();
+  if (!(await claimTap(zaloUserId, tapKey, now))) {
+    console.log(`[zalo:task] tap=${tapKey} duplicate tap -> ignored`);
+    return;
+  }
+  const tap: TapMark = { lastTap: tapKey, lastTapAt: now };
+  try {
+    await run(tap);
+  } finally {
+    // setState() replaces the context, so re-write the claim afterwards; a
+    // failure here must not swallow the action's reply.
+    try {
+      await mergeContext(zaloUserId, tap);
+    } catch (err) {
+      console.error("[zalo:task] failed to record tap de-dup", err);
+    }
+  }
 }
 
 /** Records a free-form text/photo against a task, naming it in the ack. */
@@ -365,7 +397,9 @@ export async function handleInboundText(zaloUserId: string, text: string) {
   // The "Việc của tôi" button works from any state, so it must never be
   // swallowed as an issue description or completion note.
   if (text.trim() === COMMAND_PAYLOAD.myTasks) {
-    return listOpenTasks(zaloUserId, emp.id, 0, {});
+    return oncePerTap(zaloUserId, COMMAND_PAYLOAD.myTasks, () =>
+      listOpenTasks(zaloUserId, emp.id, 0, {}),
+    );
   }
 
   const conv = await getConversation(zaloUserId);
@@ -508,28 +542,9 @@ async function handleTaskAction(
   // Retries of the same tap on a slow connection: claim it atomically so a
   // burst — or concurrent deliveries — is handled once.
   const tapKey = `${action}:${taskId}`;
-  const now = Date.now();
-  if (!(await claimTap(zaloUserId, tapKey, now))) {
-    console.log(
-      `[zalo:task] action=${action} task=${taskId} duplicate tap -> ignored`,
-    );
-    return;
-  }
-
-  try {
-    return await dispatchTaskAction(zaloUserId, emp, action, taskId, {
-      lastTap: tapKey,
-      lastTapAt: now,
-    });
-  } finally {
-    // setState() replaces the context, so re-write the claim afterwards; a
-    // failure here must not swallow the action's reply.
-    try {
-      await mergeContext(zaloUserId, { lastTap: tapKey, lastTapAt: now });
-    } catch (err) {
-      console.error("[zalo:task] failed to record tap de-dup", err);
-    }
-  }
+  return oncePerTap(zaloUserId, tapKey, (tap) =>
+    dispatchTaskAction(zaloUserId, emp, action, taskId, tap),
+  );
 }
 
 async function dispatchTaskAction(
@@ -669,7 +684,9 @@ async function handleIdleText(
   text: string,
 ) {
   if (isListCommand(text)) {
-    return listOpenTasks(zaloUserId, emp.id, 0, {});
+    return oncePerTap(zaloUserId, LIST_TAP_KEY, () =>
+      listOpenTasks(zaloUserId, emp.id, 0, {}),
+    );
   }
 
   const conv = await getConversation(zaloUserId);
@@ -709,10 +726,12 @@ async function handlePickReply(
   }
 
   if (isListCommand(text)) {
-    return listOpenTasks(zaloUserId, emp.id, pick.page + 1, {
-      text: pick.text,
-      urls: pick.urls,
-    });
+    return oncePerTap(zaloUserId, LIST_TAP_KEY, () =>
+      listOpenTasks(zaloUserId, emp.id, pick.page + 1, {
+        text: pick.text,
+        urls: pick.urls,
+      }),
+    );
   }
 
   const choice = parseTaskPick(text, pick.options.length);
