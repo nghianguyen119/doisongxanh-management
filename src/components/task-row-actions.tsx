@@ -4,15 +4,21 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
+  BellIcon,
   CheckCircleIcon,
   DotsThreeVerticalIcon,
   EyeIcon,
   ProhibitIcon,
+  WarningIcon,
 } from "@phosphor-icons/react"
 
 import { toast } from "sonner"
 
-import { cancelTaskAction, verifyTaskAction } from "@/lib/actions/tasks"
+import {
+  cancelTaskAction,
+  sendReminderAction,
+  verifyTaskAction,
+} from "@/lib/actions/tasks"
 import type { ActionStateFn } from "@/lib/action-state"
 import { Button } from "@/components/ui/button"
 import {
@@ -83,6 +89,36 @@ export function TaskRowActions({
           >
             <CheckCircleIcon />
             Xác nhận hoàn thành
+          </DropdownMenuItem>
+        )}
+        {!closed && (
+          <DropdownMenuItem
+            disabled={pending}
+            onClick={() =>
+              run(
+                sendReminderAction,
+                { taskId, overdue: "false" },
+                "Đã gửi nhắc hạn"
+              )
+            }
+          >
+            <BellIcon />
+            Gửi nhắc hạn
+          </DropdownMenuItem>
+        )}
+        {!closed && (
+          <DropdownMenuItem
+            disabled={pending}
+            onClick={() =>
+              run(
+                sendReminderAction,
+                { taskId, overdue: "true" },
+                "Đã gửi nhắc quá hạn"
+              )
+            }
+          >
+            <WarningIcon />
+            Gửi nhắc quá hạn
           </DropdownMenuItem>
         )}
         {!closed && (

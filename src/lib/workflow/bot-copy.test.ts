@@ -54,6 +54,9 @@ describe("bot-copy", () => {
   it("encodes button payloads bound to the task id", () => {
     expect(BTN.start("abc").payload).toBe("task:start:abc");
     expect(BTN.issue("abc").title).toContain("Báo sự cố");
+    expect(BTN.progress("abc").payload).toBe("task:progress:abc");
+    expect(BTN.progress("abc").title).toContain("Báo cáo tiến độ");
+    expect(BTN.myTasks().payload).toBe("cmd:my_tasks");
   });
 
   it("builds the task picker buttons with truncated titles", () => {

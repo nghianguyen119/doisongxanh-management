@@ -347,6 +347,51 @@ export async function cancelTask(input: {
   return { ...res, zalo };
 }
 
+/**
+ * Manager-triggered reminder. Ignores the cron's due window and 12h throttle,
+ * but keeps the same guards: an open task and a linked assignee. The delivery
+ * outcome is recorded in the timeline either way.
+ */
+export async function remindTask(input: {
+  taskId: string;
+  actorId: string;
+  overdue: boolean;
+}): Promise<TaskResult> {
+  const t = await getTask(input.taskId);
+  if (!t) return { ok: false, reason: "not_found" };
+  if (isClosed(t.status)) return { ok: false, reason: "closed", task: t };
+
+  const zaloUserId = await assigneeZaloId(t);
+  const zalo: NotifyResult = zaloUserId
+    ? await notify.sendReminder(toCard(t), zaloUserId, input.overdue)
+    : { ok: false, error: "not_linked" };
+
+  try {
+    await logEvent(
+      input.taskId,
+      "notification",
+      { type: "manager", id: input.actorId },
+      {
+        kind: "reminder",
+        ok: zalo.ok,
+        error: zalo.ok ? null : zalo.error,
+        overdue: input.overdue,
+        manual: true,
+      },
+    );
+  } catch (err) {
+    console.error("[notification] failed to record delivery outcome", err);
+  }
+
+  if (zalo.ok) {
+    await db
+      .update(task)
+      .set({ lastRemindedAt: new Date() })
+      .where(eq(task.id, t.id));
+  }
+  return { ok: true, task: t, zalo };
+}
+
 export async function addManagerComment(input: {
   taskId: string;
   actorId: string;

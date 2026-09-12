@@ -123,6 +123,7 @@ Lưu ý:
 | ▶️ **Bắt đầu** | Nhân viên khởi công | Công việc → *Đang làm* |
 | ✔️ **Đã xong** | Báo hoàn thành (có thể bấm ngay khi vừa nhận việc) | Công việc → *Đã xong* ngay, chờ quản lý xác nhận |
 | ⚠️ **Báo sự cố** | Có vấn đề | Bot hỏi mô tả sự cố |
+| 📝 **Báo cáo tiến độ** | Chuyển sang việc này để cập nhật | Bot nhắc gửi nội dung/ảnh; tin tiếp theo gắn vào việc đó |
 | 📋 **Việc của tôi** | Xem/đổi việc đang trao đổi | Bot gửi menu nút tất cả việc đang mở |
 
 > Không còn bước **Nhận việc**: việc đã giao mặc nhiên thuộc về nhân viên, họ
@@ -141,10 +142,12 @@ nhắn/ảnh gửi cho OA được gắn vào công việc đó (quản lý xem 
 **Khi có nhiều việc đang mở:**
 1. Nhân viên nhắn/gửi ảnh → bot gửi **menu nút** với tên từng việc (ưu tiên
    việc gần hạn nhất, tối đa 3 việc mỗi lần).
-2. Nhân viên **bấm vào việc** muốn chọn; nội dung/ảnh gửi trước đó được gắn
-   vào đúng việc đó. Còn việc khác thì bấm **⬇️ Xem thêm**.
+2. Nhân viên **bấm vào việc** muốn chọn; bot hiện lại **thẻ công việc đầy đủ**
+   kèm các nút, và nội dung/ảnh gửi trước đó được gắn vào đúng việc đó. Còn
+   việc khác thì bấm **⬇️ Xem thêm**.
 3. Việc vừa chọn trở thành việc **đang trao đổi**: các tin nhắn/ảnh tiếp theo
-   tự động gắn vào việc đó, không cần chọn lại, cho tới khi việc kết thúc.
+   tự động gắn vào việc đó, không cần chọn lại, cho tới khi việc kết thúc. Bấm
+   **📝 Báo cáo tiến độ** trên thẻ để chuyển sang việc đó và gửi cập nhật.
 4. Bấm **📋 Việc của tôi** trên bất kỳ thẻ nào để mở lại menu và đổi việc đang
    trao đổi. Vẫn có thể gõ `ds` hoặc trả lời số thứ tự nếu muốn.
 
@@ -175,6 +178,10 @@ Nếu chọn một việc đã kết thúc, bot tự làm mới danh sách để
 Hệ thống tự gửi nhắc khi công việc **còn ≤ 2 giờ** hoặc **đã quá hạn**, mỗi
 công việc tối đa **1 lần/12 giờ**. Điều kiện để nhắc được: nhân viên *Đang hoạt
 động*, đã kết nối Zalo và còn trong cửa sổ tương tác (xem mục 7).
+
+Muốn nhắc **thủ công** ngay: trong **Công việc**, mở menu **Thao tác** ở dòng
+tương ứng → **Gửi nhắc hạn** hoặc **Gửi nhắc quá hạn**. Thao tác này bỏ qua
+khung giờ và giới hạn 12 giờ; kết quả gửi được ghi vào *Diễn tiến*.
 
 ### Trạng thái công việc
 

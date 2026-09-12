@@ -189,6 +189,42 @@ export async function verifyTaskAction(
   }
 }
 
+/**
+ * Manager-triggered reminder from the tasks table. Ignores the cron's due
+ * window and throttle; the Zalo outcome lands in the timeline either way.
+ */
+export async function sendReminderAction(
+  _prev: ActionResultState,
+  formData: FormData,
+): Promise<ActionResultState> {
+  const user = await requireUser();
+
+  try {
+    const taskId = z.string().uuid().parse(formData.get("taskId"));
+    const overdue =
+      z.enum(["true", "false"]).parse(formData.get("overdue")) === "true";
+
+    const res = await taskService.remindTask({
+      taskId,
+      actorId: user.id,
+      overdue,
+    });
+    revalidateTask(taskId);
+    if (!res.ok) return { error: mutationError(res) };
+    if (res.zalo && !res.zalo.ok) {
+      return {
+        error:
+          res.zalo.error === "not_linked"
+            ? "Nhân viên chưa kết nối Zalo."
+            : "Không gửi được Zalo, xem Diễn tiến để biết lý do.",
+      };
+    }
+    return { success: true };
+  } catch (err) {
+    return { error: toActionError(err) };
+  }
+}
+
 /** Returns a not-yet-started task to the unassigned pool (assignee cleared). */
 export async function unassignTaskAction(
   _prev: ActionResultState,

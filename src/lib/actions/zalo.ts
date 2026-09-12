@@ -74,7 +74,13 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
           heading: copy.assignedHeading,
           closing: copy.assignedClosing,
         }),
-        [BTN.start(t.id), BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
+        [
+          BTN.start(t.id),
+          BTN.done(t.id),
+          BTN.issue(t.id),
+          BTN.progress(t.id),
+          BTN.myTasks(),
+        ],
       );
     case "updated":
       return client.sendButtons(
@@ -83,7 +89,7 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
           heading: copy.updatedHeading,
           closing: copy.updatedClosing,
         }),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
+        [BTN.done(t.id), BTN.issue(t.id), BTN.progress(t.id), BTN.myTasks()],
       );
     case "started":
       return client.sendButtons(
@@ -92,7 +98,7 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
           heading: copy.startedHeading,
           closing: copy.startedClosing,
         }),
-        [BTN.done(t.id), BTN.issue(t.id)],
+        [BTN.done(t.id), BTN.issue(t.id), BTN.progress(t.id)],
       );
     case "reminder_due":
       return client.sendButtons(
@@ -101,7 +107,7 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
           heading: copy.reminderDueHeading,
           closing: copy.reminderClosing,
         }),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
+        [BTN.done(t.id), BTN.issue(t.id), BTN.progress(t.id), BTN.myTasks()],
       );
     case "reminder_overdue":
       return client.sendButtons(
@@ -110,7 +116,7 @@ async function send(kind: ZaloTestKind, zaloUserId: string, text?: string) {
           heading: copy.reminderOverdueHeading,
           closing: copy.reminderClosing,
         }),
-        [BTN.done(t.id), BTN.issue(t.id), BTN.myTasks()],
+        [BTN.done(t.id), BTN.issue(t.id), BTN.progress(t.id), BTN.myTasks()],
       );
     case "request_user_info":
       return client.requestUserInfo(zaloUserId, copy.requestInfoTitle);

@@ -57,6 +57,7 @@ export function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
         BTN.start(task.id),
         BTN.done(task.id),
         BTN.issue(task.id),
+        BTN.progress(task.id),
         BTN.myTasks(),
       ],
     ),
@@ -71,7 +72,32 @@ export function notifyUpdated(task: TaskCardInput, zaloUserId: string) {
         heading: copy.updatedHeading,
         closing: copy.updatedClosing,
       }),
-      [BTN.done(task.id), BTN.issue(task.id), BTN.myTasks()],
+      [
+        BTN.done(task.id),
+        BTN.issue(task.id),
+        BTN.progress(task.id),
+        BTN.myTasks(),
+      ],
+    ),
+  );
+}
+
+/** Full "current task" card shown after the employee picks from the menu. */
+export function sendPickedCard(task: TaskCardInput, zaloUserId: string) {
+  return safe(
+    getZaloClient().sendButtons(
+      zaloUserId,
+      taskCardText(task, {
+        heading: copy.pickedCardHeading,
+        closing: copy.pickedCardClosing,
+      }),
+      [
+        BTN.start(task.id),
+        BTN.done(task.id),
+        BTN.issue(task.id),
+        BTN.progress(task.id),
+        BTN.myTasks(),
+      ],
     ),
   );
 }
@@ -84,7 +110,7 @@ export function notifyStarted(task: TaskCardInput, zaloUserId: string) {
         heading: copy.startedHeading,
         closing: copy.startedClosing,
       }),
-      [BTN.done(task.id), BTN.issue(task.id)],
+      [BTN.done(task.id), BTN.issue(task.id), BTN.progress(task.id)],
     ),
   );
 }
@@ -167,7 +193,12 @@ export function sendReminder(
           : copy.reminderDueHeading,
         closing: copy.reminderClosing,
       }),
-      [BTN.done(task.id), BTN.issue(task.id), BTN.myTasks()],
+      [
+        BTN.done(task.id),
+        BTN.issue(task.id),
+        BTN.progress(task.id),
+        BTN.myTasks(),
+      ],
     ),
   );
 }

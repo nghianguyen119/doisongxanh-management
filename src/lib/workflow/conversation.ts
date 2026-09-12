@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, zaloConversation } from "@/db/schema";
 import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
@@ -11,6 +11,7 @@ import * as linking from "./employee-linking";
 import { parseTaskPick, pickPage, sortOpenTasks } from "./task-pick";
 import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
+import * as notify from "./notification-service";
 import { onboardEmployee } from "./onboarding";
 import { ACTION_TARGET_STATUS, isClosed } from "./task-status";
 
@@ -27,6 +28,9 @@ const STATE_TTL_MS = 30 * 60 * 1000;
  * tap retried on a slow connection; only the first one is handled.
  */
 const TAP_DEDUPE_MS = 10 * 1000;
+
+/** The de-dupe marker stored in the conversation context. */
+type TapMark = { lastTap: string; lastTapAt: number };
 
 type EmployeeRow = typeof employee.$inferSelect;
 type ConvRow = typeof zaloConversation.$inferSelect;
@@ -154,6 +158,36 @@ async function findOpenAssigned(
   return OPEN_TASK_STATUSES.includes(t.status) ? t : null;
 }
 
+/**
+ * Atomically claims a button tap (`<action>:<taskId>`) in the conversation
+ * context. Returns false when the same tap was already handled inside the
+ * window, so concurrent deliveries of one physical tap — or a flurry of taps
+ * on a slow connection — are processed once. `setState()` replaces the whole
+ * context, so the caller must re-write the claim afterwards.
+ */
+async function claimTap(
+  zaloUserId: string,
+  tapKey: string,
+  now: number,
+): Promise<boolean> {
+  const since = now - TAP_DEDUPE_MS;
+  const result = await db.execute(sql`
+    insert into zalo_conversation (zalo_user_id, context)
+    values (
+      ${zaloUserId},
+      jsonb_build_object('lastTap', ${tapKey}::text, 'lastTapAt', ${now}::bigint)
+    )
+    on conflict (zalo_user_id) do update
+      set context = zalo_conversation.context
+            || jsonb_build_object('lastTap', ${tapKey}::text, 'lastTapAt', ${now}::bigint),
+          updated_at = now()
+      where zalo_conversation.context->>'lastTap' is distinct from ${tapKey}
+         or coalesce((zalo_conversation.context->>'lastTapAt')::bigint, 0) < ${since}
+    returning zalo_user_id
+  `);
+  return (result.rowCount ?? 0) > 0;
+}
+
 /** Patches the conversation context without touching its state. */
 async function mergeContext(
   zaloUserId: string,
@@ -197,7 +231,25 @@ async function applyFreeMessage(
   );
 }
 
-/** Sends the numbered list and parks the message until a number arrives. */
+/**
+ * Makes `target` the active task, shows its full card (same buttons as an
+ * assignment) and records any note/photo sent before the choice.
+ */
+async function selectTask(
+  zaloUserId: string,
+  emp: EmployeeRow,
+  target: TaskRow,
+  parked: { text?: string; urls?: string[] },
+  tap?: TapMark,
+) {
+  await setState(zaloUserId, "idle", { activeTaskId: target.id, ...(tap ?? {}) });
+  await notify.sendPickedCard(tasks.taskToCard(target), zaloUserId);
+  if (parked.text || parked.urls?.length) {
+    return applyFreeMessage(zaloUserId, emp, target, parked);
+  }
+}
+
+/** Sends the task menu and parks the message until a choice arrives. */
 async function askTaskPick(
   zaloUserId: string,
   employeeId: string,
@@ -453,18 +505,42 @@ async function handleTaskAction(
     return;
   }
 
-  // Retries of the same tap on a slow connection: handle the burst once.
-  const conv = await getConversation(zaloUserId);
-  const ctx = conv.context as ConvContext;
+  // Retries of the same tap on a slow connection: claim it atomically so a
+  // burst — or concurrent deliveries — is handled once.
   const tapKey = `${action}:${taskId}`;
   const now = Date.now();
-  if (ctx.lastTap === tapKey && now - (ctx.lastTapAt ?? 0) < TAP_DEDUPE_MS) {
+  if (!(await claimTap(zaloUserId, tapKey, now))) {
     console.log(
       `[zalo:task] action=${action} task=${taskId} duplicate tap -> ignored`,
     );
     return;
   }
-  await mergeContext(zaloUserId, { lastTap: tapKey, lastTapAt: now });
+
+  try {
+    return await dispatchTaskAction(zaloUserId, emp, action, taskId, {
+      lastTap: tapKey,
+      lastTapAt: now,
+    });
+  } finally {
+    // setState() replaces the context, so re-write the claim afterwards; a
+    // failure here must not swallow the action's reply.
+    try {
+      await mergeContext(zaloUserId, { lastTap: tapKey, lastTapAt: now });
+    } catch (err) {
+      console.error("[zalo:task] failed to record tap de-dup", err);
+    }
+  }
+}
+
+async function dispatchTaskAction(
+  zaloUserId: string,
+  emp: EmployeeRow,
+  action: string,
+  taskId: string,
+  tap: TapMark,
+) {
+  const conv = await getConversation(zaloUserId);
+  const ctx = conv.context as ConvContext;
 
   const t = await db.query.task.findFirst({ where: eq(task.id, taskId) });
   if (!t) {
@@ -513,7 +589,7 @@ async function handleTaskAction(
       // flow so the next message cannot be mistaken for it.
       const res = await tasks.completeTask({ taskId, employeeId: emp.id });
       if (res.ok) {
-        await setState(zaloUserId, "idle", { activeTaskId: taskId });
+        await setState(zaloUserId, "idle", { activeTaskId: taskId, ...tap });
       }
       return reportActionFailure(zaloUserId, action, res);
     }
@@ -521,6 +597,7 @@ async function handleTaskAction(
       await setState(zaloUserId, "awaiting_issue_text", {
         taskId,
         activeTaskId: taskId,
+        ...tap,
       });
       return say(
         zaloUserId,
@@ -529,25 +606,25 @@ async function handleTaskAction(
           closing: copy.issueClosing,
         }),
       );
-    case "pick": {
-      // Menu tap: make the task sticky and apply whatever the employee sent
-      // before choosing (a note or a photo).
-      const pick = ctx.pick;
-      await setState(zaloUserId, "idle", { activeTaskId: taskId });
-      if (pick?.text || pick?.urls?.length) {
-        return applyFreeMessage(zaloUserId, emp, t, {
-          text: pick.text,
-          urls: pick.urls,
-        });
-      }
+    case "pick":
+      // Menu tap: switch the active task and show its full card.
+      return selectTask(
+        zaloUserId,
+        emp,
+        t,
+        { text: ctx.pick?.text, urls: ctx.pick?.urls },
+        tap,
+      );
+    case "progress":
+      // Make this task the active one; the next note/photo is the report.
+      await setState(zaloUserId, "idle", { activeTaskId: taskId, ...tap });
       return say(
         zaloUserId,
         taskNoticeText(taskLabel(t), {
-          heading: copy.pickedHeading,
-          closing: copy.pickedClosing,
+          heading: copy.progressHeading,
+          closing: copy.progressClosing,
         }),
       );
-    }
     default:
       return say(zaloUserId, copy.help);
   }
@@ -616,7 +693,7 @@ async function handleIdleText(
 }
 
 /**
- * Answer to the numbered list: a number applies the parked content (or just
+ * Answer to the menu message: a number applies the parked content (or just
  * switches the sticky task), `ds` pages on, anything else is kept as content.
  */
 async function handlePickReply(
@@ -671,18 +748,8 @@ async function handlePickReply(
     });
   }
 
-  await setState(zaloUserId, "idle", { activeTaskId: target.id });
-  if (pick.text || pick.urls?.length) {
-    return applyFreeMessage(zaloUserId, emp, target, {
-      text: pick.text,
-      urls: pick.urls,
-    });
-  }
-  return say(
-    zaloUserId,
-    taskNoticeText(taskLabel(target), {
-      heading: copy.pickedHeading,
-      closing: copy.pickedClosing,
-    }),
-  );
+  return selectTask(zaloUserId, emp, target, {
+    text: pick.text,
+    urls: pick.urls,
+  });
 }

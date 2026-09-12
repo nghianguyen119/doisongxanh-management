@@ -85,6 +85,11 @@ export const BTN = {
     title: "⚠️ Báo sự cố",
     payload: BUTTON_PAYLOAD.encode("issue", id),
   }),
+  /** Makes this task the active one and asks for a progress update. */
+  progress: (id: string): ZaloButton => ({
+    title: "📝 Báo cáo tiến độ",
+    payload: BUTTON_PAYLOAD.encode("progress", id),
+  }),
   /** Opens the button menu of every open task; works from any state. */
   myTasks: (): ZaloButton => ({
     title: "📋 Việc của tôi",
@@ -181,8 +186,13 @@ export const copy = {
     "Mình chưa hiểu. Bạn bấm vào việc muốn chọn bên trên, hoặc trả lời số thứ tự của việc đó.",
   taskPickImageHeld:
     "Đã nhận ảnh. Bạn vui lòng chọn việc cho ảnh này ở danh sách bên trên.",
-  pickedHeading: "📋 Đã chọn việc",
-  pickedClosing: "Bạn nhắn tiếp ở đây để cập nhật nhé.",
+  /** Card shown when the employee picks a task from the menu. */
+  pickedCardHeading: "📌 Công việc đang trao đổi",
+  pickedCardClosing:
+    "Các tin nhắn/ảnh tiếp theo sẽ được gắn vào việc này. Bấm 📝 Báo cáo tiến độ để cập nhật.",
+  progressHeading: "📝 Báo cáo tiến độ",
+  progressClosing:
+    "Bạn hãy gửi nội dung hoặc ảnh cập nhật cho việc này. Tin nhắn tiếp theo sẽ được ghi vào công việc.",
   oneTaskHeading: "📋 Bạn đang có 1 việc mở",
   oneTaskClosing: "Cứ nhắn ở đây để cập nhật.",
 
