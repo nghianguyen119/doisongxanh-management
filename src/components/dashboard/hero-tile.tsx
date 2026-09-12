@@ -154,10 +154,13 @@ export function HeroTile({
       href: tasksHref([{ id: "status", value: ["done"] }]),
     },
     {
-      label: "Đã xác nhận",
-      value: counts.verified,
-      tone: "text-emerald-600 dark:text-emerald-400",
-      href: tasksHref([{ id: "status", value: ["verified"] }]),
+      label: "Gặp sự cố",
+      value: counts.blocked,
+      tone:
+        counts.blocked > 0
+          ? "text-red-600 dark:text-red-400"
+          : "text-foreground",
+      href: tasksHref([{ id: "status", value: ["blocked"] }]),
     },
   ];
 
