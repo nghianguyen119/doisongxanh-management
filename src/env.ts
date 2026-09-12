@@ -98,6 +98,14 @@ export function isSimulatorEnabled(): boolean {
 }
 
 /**
+ * The real-send tester on /settings/zalo makes live OA API calls with the
+ * token stored in `zalo_oa_token`, so it is local/non-production only.
+ */
+export function isRealSendTesterEnabled(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+/**
  * AUTH_BYPASS lets the portal be browsed without a session in dev. Requires
  * a non-production build so the flag can never unlock production.
  */

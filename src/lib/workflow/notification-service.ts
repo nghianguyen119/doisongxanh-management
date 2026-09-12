@@ -16,7 +16,6 @@ import { BTN, copy, taskCardText, type TaskCardInput } from "./bot-copy";
 export type NotificationKind =
   | "assigned"
   | "updated"
-  | "accepted"
   | "started"
   | "done"
   | "issue"
@@ -45,7 +44,7 @@ export function notifyAssigned(task: TaskCardInput, zaloUserId: string) {
     getZaloClient().sendButtons(
       zaloUserId,
       taskCardText(task, copy.assignedHeading),
-      [BTN.accept(task.id), BTN.issue(task.id), BTN.detail(task.id)],
+      [BTN.start(task.id), BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
     ),
   );
 }
@@ -57,16 +56,6 @@ export function notifyUpdated(task: TaskCardInput, zaloUserId: string) {
       taskCardText(task, copy.updatedHeading),
       [BTN.done(task.id), BTN.issue(task.id), BTN.detail(task.id)],
     ),
-  );
-}
-
-export function notifyAccepted(task: TaskCardInput, zaloUserId: string) {
-  return safe(
-    getZaloClient().sendButtons(zaloUserId, copy.acceptedAck, [
-      BTN.start(task.id),
-      BTN.done(task.id),
-      BTN.issue(task.id),
-    ]),
   );
 }
 

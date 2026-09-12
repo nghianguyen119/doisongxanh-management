@@ -1,12 +1,13 @@
 import { desc, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { employee } from "@/db/schema";
-import { env, isSimulatorEnabled } from "@/env";
+import { env, isRealSendTesterEnabled, isSimulatorEnabled } from "@/env";
 import { PageHeader } from "@/components/ui";
 import { Card } from "@/components/ui/card";
 import { listRecentClientMessages } from "@/lib/queries";
 import { formatVNShort } from "@/lib/time";
 import { describeInbound } from "@/lib/zalo/log";
+import { RealTester } from "./real-tester";
 import { Simulator } from "./simulator";
 
 export default async function ZaloSettingsPage() {
@@ -116,6 +117,18 @@ export default async function ZaloSettingsPage() {
           Công cụ mô phỏng chỉ hoạt động khi <code>ZALO_TRANSPORT=mock</code> và
           không chạy ở chế độ production.
         </Card>
+      )}
+
+      {isRealSendTesterEnabled() && (
+        <div className="mt-6">
+          <RealTester
+            linked={linked.map((e) => ({
+              id: e.id,
+              name: e.name,
+              zaloUserId: e.zaloUserId!,
+            }))}
+          />
+        </div>
       )}
     </div>
   );

@@ -360,9 +360,9 @@ export default async function TaskDetailPage({
               successMessage="Đã bỏ giao"
             >
               <input type="hidden" name="taskId" value={t.id} />
-              {t.assigneeId && !closed && (
+              {t.assigneeId && t.status === "assigned" && (
                 <SubmitButton variant="ghost" className="w-full">
-                  Bỏ giao (về Mới tạo)
+                  Bỏ giao (về Cần làm)
                 </SubmitButton>
               )}
             </ActionForm>

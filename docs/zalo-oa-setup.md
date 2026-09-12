@@ -20,7 +20,7 @@ Before switching `ZALO_TRANSPORT=live`, note these items:
 | 2 | Webhook idempotency (Zalo retries) | **Done** — de-duplicated on Zalo `msg_id`; the route always 200s. |
 | 3 | Token storage + rotation | **Done** — `zalo_oa_token` row, refreshed 5 min before expiry, new refresh token persisted. |
 | 4 | Concurrency at refresh time | **Known edge** — Zalo refresh tokens are single-use. Two simultaneous sends exactly at refresh can cause one send to fail. Fine at low volume; add a Postgres advisory lock if traffic grows. |
-| 5 | `request_user_info` template | **Unused** — linking is invite-code only, the bot no longer requests phone info. If phone linking is revived, fix `image_url` (Zalo requires it; `client-real.ts` sends `""`). |
+| 5 | `request_user_info` template | **Unused** — linking is invite-code only, the bot no longer requests phone info. `client-real.ts` now sends the app logo (`NEXT_PUBLIC_APP_URL/logo.png`); Zalo rejects empty/localhost URLs, so it only succeeds once the app has a public HTTPS URL. |
 | 6 | Message window | **Limit** — CS messages only within **7 days** of the user's last interaction; free within 48h, paid after (see §6.4). Outside 7 days, delivery fails — needs ZNS template (not implemented). |
 | 7 | `ALLOWED_MANAGER_EMAILS` | **Must be non-empty in production** — an empty allowlist blocks every sign-in outside dev. |
 | 8 | Cron scheduler | Wire `CRON_SECRET` + an hourly trigger, or due-date reminders are disabled (503). |
@@ -45,7 +45,7 @@ customers. The Zalo id is looked up on `employee.zaloUserId` on every inbound
 event:
 
 - **Linked** → employee flow. Buttons on task cards carry a payload like
-  `task:accept:<task-uuid>`; tapping one sends a normal text message back to
+  `task:start:<task-uuid>`; tapping one sends a normal text message back to
   the OA, and the bot decodes it. The Zalo user id, the task id in the payload
   and the assignee on that task must line up.
 - **Not linked** → customer flow. The message is logged and gets one neutral
@@ -212,12 +212,14 @@ Notes:
    acknowledgement, and the message shows under *Zalo OA → Tin nhắn khách hàng*.
 3. In the portal: `/employees` → open an employee → **Tạo mã mời** → copy the code.
 4. Send the code from that Zalo account → “Đã kết nối tài khoản…”, and the
-   employee flips to *Đang hoạt động* with the Zalo id shown.
+   employee flips to *Đang hoạt động* with the Zalo id shown. The OA then sends
+   the onboarding guide plus a practice task (safe to tap around).
 5. `/tasks/new` → create a task assigned to that employee → the OA delivers the
-   card with **✅ Nhận việc / ⚠️ Báo sự cố / ℹ️ Chi tiết** buttons.
-6. Tap **✅ Nhận việc** → **▶️ Bắt đầu** → **✔️ Đã xong** → send a photo
-   (or reply `bỏ qua`) → the portal task moves to *Đã xong* with the photo in
-   the gallery and every step in the timeline.
+   card with **▶️ Bắt đầu / ✔️ Đã xong / ⚠️ Báo sự cố / ℹ️ Chi tiết** buttons.
+6. Send a photo (or reply with a note), then tap **▶️ Bắt đầu** → **✔️ Đã xong**
+   → the portal task moves to *Đã xong* with the photo in the gallery and every
+   step in the timeline. Assignment needs no acceptance step, and *Đã xong*
+   completes immediately (send any photo/note first).
 7. Tap **⚠️ Báo sự cố** and describe it → task becomes *Gặp sự cố*.
 8. Manager clicks **Xác nhận hoàn thành** → *Đã xác nhận*, and the OA notifies
    the employee.
@@ -246,11 +248,10 @@ for sign-in). A full inbound event produces a chain like this:
 
 ```
 [zalo:webhook] received sig=ok event=user_send_text parsed=text sender=123 msg_id=abc in 3ms
-[zalo:inbound] kind=text from=123 text="hoàn thành rồi"
-[zalo:state] user=123 -> idle ctx={"taskId":"…"}
+[zalo:inbound] kind=text from=123 text="task:done:…"
 [zalo:task] action=done task=… employee=… status=in_progress
-[zalo:send] -> buttons to=123 buttons="Bạn hãy gửi 1 ảnh kết quả công việc…" [✔️ Đã xong | ⚠️ Báo sự cố]
-[zalo:send] <- ok buttons to=123 http=200 message_id=… in 412ms
+[zalo:send] -> text to=123 text="Cảm ơn bạn! ✔️ Công việc đã được báo hoàn thành…"
+[zalo:send] <- ok text to=123 http=200 message_id=… in 412ms
 [zalo:inbound] handled kind=text from=123 in 780ms
 ```
 
@@ -343,6 +344,7 @@ OA quality/reporting in OA Manager also affects limits.
 | `Zalo OA not initialised` | `ZALO_OA_REFRESH_TOKEN` missing and no `zalo_oa_token` row. Re-run §3.E. |
 | `Zalo token refresh failed: invalid refresh token` | Refresh token was already used/expired. Re-run §3.E and clear the row (see §5.1). |
 | Button tap does nothing | Buttons are sent as `oa.query.hide`; the tap arrives as `user_send_text`. If payloads are missing, confirm the card was actually delivered and the task still belongs to that employee. |
+| `error=-201 … Missing template_type params` | The card used an unsupported `template_type`. Zalo's CS button format is `message.text` + `message.attachment.payload.buttons` with no `template_type` (see `client-real.ts#sendButtons`). |
 | `user_submit_info` never arrives | Subscribe the event if you want shared contact details logged for the customer inbox. It is no longer used for linking. |
 | Assign works but the employee gets no Zalo card | The assignee has no `zaloUserId` (status *Chờ kết nối*), or the 7-day window/send failed — check the log. |
 | Duplicate “task done” events | Should not happen (dedupe on `msg_id`); if it does, check that `zalo_message_log.external_id` is unique and populated. |

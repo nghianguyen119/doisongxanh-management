@@ -10,23 +10,21 @@ export type TaskStatus = (typeof taskStatus.enumValues)[number];
  * tapping it posts its payload again. Without a guard that would silently
  * resurrect a task the manager had already verified or cancelled.
  *
- * `assigned` appears in most lists because a manager re-assigning a task
- * resets it to `assigned`.
+ * `assigned` is the single "to do" state: it holds drafts that have no
+ * assignee yet and tasks an employee has been given but not started. There is
+ * no separate acceptance step; `assigned` appears in most lists because a
+ * manager re-assigning a task resets it to `assigned`.
  */
 export const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  new: ["assigned", "cancelled"],
   assigned: [
-    "accepted",
     "in_progress",
     "done",
     "blocked",
     "assigned",
-    "new",
     "cancelled",
   ],
-  accepted: ["in_progress", "done", "blocked", "assigned", "cancelled"],
   in_progress: ["done", "blocked", "assigned", "cancelled"],
-  blocked: ["accepted", "in_progress", "done", "assigned", "cancelled"],
+  blocked: ["in_progress", "done", "assigned", "cancelled"],
   done: ["verified", "blocked", "in_progress", "assigned", "cancelled"],
   verified: [], // terminal
   cancelled: ["assigned"], // reopened only by an explicit re-assign

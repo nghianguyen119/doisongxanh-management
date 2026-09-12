@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BTN, taskCardText } from "./bot-copy";
+import { BTN, ONBOARDING_TASK, copy, taskCardText } from "./bot-copy";
 
 describe("bot-copy", () => {
   it("builds a Vietnamese task card with heading, title and due", () => {
@@ -32,7 +32,25 @@ describe("bot-copy", () => {
   });
 
   it("encodes button payloads bound to the task id", () => {
-    expect(BTN.accept("abc").payload).toBe("task:accept:abc");
+    expect(BTN.start("abc").payload).toBe("task:start:abc");
     expect(BTN.issue("abc").title).toContain("Báo sự cố");
+  });
+
+  it("builds a copy-ready invite with the employee name and code", () => {
+    const text = copy.invite("Nguyễn Văn A", "MKTP");
+    expect(text).toContain("Nguyễn Văn A");
+    expect(text).toContain("MKTP");
+    expect(text).toContain("quan tâm OA");
+  });
+
+  it("explains the buttons in the onboarding guide", () => {
+    for (const btn of ["Bắt đầu", "Đã xong", "Báo sự cố", "Chi tiết"]) {
+      expect(copy.onboardingGuide).toContain(btn);
+    }
+  });
+
+  it("has a non-empty onboarding task", () => {
+    expect(ONBOARDING_TASK.title).toContain("làm quen");
+    expect(ONBOARDING_TASK.description.length).toBeGreaterThan(20);
   });
 });

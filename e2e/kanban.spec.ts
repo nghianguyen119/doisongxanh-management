@@ -14,11 +14,10 @@ test.afterAll(async () => {
 });
 
 test.describe("kanban board", () => {
-  test("renders the six status columns", async ({ page }) => {
+  test("renders the five status columns", async ({ page }) => {
     await page.goto("/kanban");
     for (const title of [
-      "Mới tạo",
-      "Đã giao",
+      "Cần làm",
       "Đang làm",
       "Sự cố",
       "Chờ xác nhận",
@@ -64,13 +63,14 @@ test.describe("kanban board", () => {
     const taskId = await createTaskViaUi(page, { title });
 
     await page.goto("/kanban");
-    expect(await cardColumn(page, taskId)).toBe("new");
-    await dragCard(page, taskId, "assigned");
+    expect(await cardColumn(page, taskId)).toBe("assigned");
+    await dragCard(page, taskId, "done");
     await expect(page.locator("[data-sonner-toast]").first()).toContainText(
       /Cần giao việc cho nhân viên/
     );
-    await expect.poll(() => cardColumn(page, taskId)).toBe("new");
-    expect((await taskRow(taskId))?.status).toBe("new");
+    await expect.poll(() => cardColumn(page, taskId)).toBe("assigned");
+    expect((await taskRow(taskId))?.status).toBe("assigned");
+    expect((await taskRow(taskId))?.assignee_id).toBeNull();
   });
 
   test("a failed move reverts with a toast instead of crashing", async ({

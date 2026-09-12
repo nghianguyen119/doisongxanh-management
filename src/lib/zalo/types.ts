@@ -6,7 +6,7 @@
  * buttons in Zalo OA do not produce a dedicated event: a tap on an
  * `oa.query.hide` button sends the button's `payload` back as a normal text
  * message, so button taps arrive here as `kind: "text"` whose `text` is the
- * payload string (e.g. `task:accept:<uuid>`). See BUTTON_PAYLOAD below.
+ * payload string (e.g. `task:start:<uuid>`). See BUTTON_PAYLOAD below.
  */
 
 export type InboundEvent =

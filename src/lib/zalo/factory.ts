@@ -14,3 +14,12 @@ export function getZaloClient(): ZaloClient {
   }
   return cached;
 }
+
+/**
+ * The live transport even when `ZALO_TRANSPORT=mock`, so the /settings/zalo
+ * send tester can push real OA messages using the token in `zalo_oa_token`.
+ * Only reachable from the non-production tester action.
+ */
+export function getRealZaloClient(): ZaloClient {
+  return new RealZaloClient();
+}

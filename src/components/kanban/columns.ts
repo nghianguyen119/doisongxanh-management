@@ -30,18 +30,9 @@ export interface KanbanColumnConfig {
 
 export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
   {
-    id: "new",
-    title: "Mới tạo",
-    eyebrow: "Chưa giao",
-    status: "new",
-    statuses: ["new"],
-    accent: "from-slate-500/20 via-slate-500/5 to-transparent",
-    dot: "bg-slate-400",
-  },
-  {
     id: "assigned",
-    title: "Đã giao",
-    eyebrow: "Chờ nhận",
+    title: "Cần làm",
+    eyebrow: "Chưa bắt đầu",
     status: "assigned",
     statuses: ["assigned"],
     accent: "from-blue-500/20 via-blue-500/5 to-transparent",
@@ -52,7 +43,7 @@ export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
     title: "Đang làm",
     eyebrow: "Thực hiện",
     status: "in_progress",
-    statuses: ["accepted", "in_progress"],
+    statuses: ["in_progress"],
     accent:
       "from-amber-600/20 via-amber-600/5 dark:from-amber-400/20 dark:via-amber-400/5 to-transparent",
     dot: "bg-amber-500",

@@ -23,7 +23,7 @@ export const task = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     title: text().notNull(),
     description: text(),
-    status: taskStatus().notNull().default("new"),
+    status: taskStatus().notNull().default("assigned"),
     priority: taskPriority().notNull().default("normal"),
     assigneeId: uuid().references(() => employee.id, { onDelete: "set null" }),
     createdBy: text().references(() => user.id, { onDelete: "set null" }),

@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/copy-button";
 import { ActionForm, SubmitButton } from "@/components/action-form";
+import { copy } from "@/lib/workflow/bot-copy";
 import { EmployeeProfileForm } from "./employee-profile-form";
 import { EmployeeStatusForm } from "./employee-status-form";
 
@@ -121,7 +122,7 @@ export default async function EmployeeDetailPage({
           <div className="border-t pt-3">
             <p className="mb-2 text-sm font-medium">Cách 1 · Mã mời</p>
             {activeInvite ? (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-start justify-between gap-2">
                 <div className="text-sm">
                   Mã:{" "}
                   <span className="font-mono text-base font-semibold">
@@ -132,7 +133,13 @@ export default async function EmployeeDetailPage({
                     này cho Zalo OA.
                   </span>
                 </div>
-                <CopyButton value={activeInvite.code} label="Sao chép mã" />
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <CopyButton value={activeInvite.code} label="Sao chép mã" />
+                  <CopyButton
+                    value={copy.invite(e.name, activeInvite.code)}
+                    label="Sao chép tin nhắn mời"
+                  />
+                </div>
               </div>
             ) : (
               <ActionForm

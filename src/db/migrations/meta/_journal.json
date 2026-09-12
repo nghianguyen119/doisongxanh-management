@@ -29,6 +29,27 @@
       "when": 1789159066442,
       "tag": "0003_nosy_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789192930015,
+      "tag": "0004_pretty_zarda",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789193623431,
+      "tag": "0005_workable_zzzax",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789204739213,
+      "tag": "0006_peaceful_moon_knight",
+      "breakpoints": true
     }
   ]
 }

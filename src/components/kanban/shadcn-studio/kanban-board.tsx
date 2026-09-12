@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { formatVNShort } from "@/lib/time"
-import { TASK_PRIORITY_LABEL, TASK_STATUS_LABEL } from "@/lib/labels"
+import { TASK_PRIORITY_LABEL } from "@/lib/labels"
 import { moveTaskAction } from "@/lib/actions/tasks"
 import {
   KANBAN_COLUMNS,
@@ -99,12 +99,6 @@ function TaskCard({
             </AvatarFallback>
           </Avatar>
           <span className="truncate">{task.assigneeName ?? "Chưa giao"}</span>
-          {/* "Đang làm" merges two statuses; call out the not-yet-started one. */}
-          {task.status === "accepted" && (
-            <span className="bg-muted shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium">
-              {TASK_STATUS_LABEL[task.status]}
-            </span>
-          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {task.attachmentCount > 0 && (
@@ -238,9 +232,9 @@ export function KanbanBoardView({
     const config = KANBAN_COLUMNS.find((column) => column.id === moved.toColumn)
     if (!config) return
 
-    // Unassigned cards can only move once someone owns them. Say so straight
-    // away and offer a way there, instead of a generic failure.
-    if (!moved.task.assigneeName && config.status !== "new") {
+    // An unassigned card has nobody to work on it, so it cannot move columns.
+    // Say so straight away and offer a way to fix it.
+    if (!moved.task.assigneeName) {
       setColumns(previous)
       toast.error("Cần giao việc cho nhân viên trước.", {
         action: {
@@ -294,7 +288,7 @@ export function KanbanBoardView({
         getItemValue={(item) => item.id}
         className="w-full"
       >
-        <KanbanBoard className="grid auto-rows-fr grid-cols-[repeat(6,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(6,minmax(15rem,1fr))]">
+        <KanbanBoard className="grid auto-rows-fr grid-cols-[repeat(5,minmax(15rem,1fr))] gap-3 sm:grid-cols-[repeat(5,minmax(15rem,1fr))]">
           {KANBAN_COLUMNS.map((config) => (
             <TaskColumn
               key={config.id}

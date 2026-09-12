@@ -68,10 +68,6 @@ export function taskPickText(
 }
 
 export const BTN = {
-  accept: (id: string): ZaloButton => ({
-    title: "✅ Nhận việc",
-    payload: BUTTON_PAYLOAD.encode("accept", id),
-  }),
   start: (id: string): ZaloButton => ({
     title: "▶️ Bắt đầu",
     payload: BUTTON_PAYLOAD.encode("start", id),
@@ -98,12 +94,26 @@ export const copy = {
     "• Khách hàng: để lại lời nhắn, chúng tôi sẽ phản hồi trong thời gian sớm nhất.",
   linkSuccess: (name: string) =>
     `Đã kết nối tài khoản cho ${name}. ✅ Bạn sẽ nhận công việc tại đây.`,
+  /** Ready-to-paste invite the manager sends to the employee (or a group). */
+  invite: (name: string, code: string) =>
+    `Chào ${name} 🌿\n` +
+    `Đời Sống Xanh đã tạo mã mời kết nối tài khoản Zalo để bạn nhận công việc.\n` +
+    `Bạn hãy quan tâm OA Đời Sống Xanh rồi gửi mã: ${code} cho OA nhé.\n` +
+    `Sau khi kết nối, công việc sẽ được gửi cho bạn qua Zalo.`,
   linkNotFound:
     "Mã mời không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại với quản lý.",
   alreadyLinked:
     "Mã mời này đã được dùng cho một tài khoản Zalo khác. Vui lòng liên hệ quản lý.",
   accountInactive:
     "Tài khoản của bạn đang tạm ngưng. Vui lòng liên hệ quản lý để mở lại.",
+  /** Sent right after an employee links, before their practice task. */
+  onboardingGuide:
+    "🌿 Hướng dẫn nhận việc qua Zalo:\n" +
+    "• Khi có việc, bạn nhận thẻ công việc tại đây.\n" +
+    "• Bấm ▶️ Bắt đầu khi khởi công, ✔️ Đã xong khi làm xong, ⚠️ Báo sự cố khi " +
+    "vướng mắc, ℹ️ Chi tiết để xem lại.\n" +
+    "• Muốn kèm ảnh/ghi chú, bạn gửi ảnh/ghi chú cho OA trước khi bấm Đã xong.\n" +
+    "• Cứ thoải mái thử với việc làm quen bên dưới — không ảnh hưởng công việc thật.",
 
   // Client (any Zalo user not linked to an employee)
   clientAutoReply:
@@ -118,11 +128,7 @@ export const copy = {
   assignedHeading: "🔔 Bạn có công việc mới:",
   updatedHeading: "✏️ Công việc vừa được cập nhật:",
   detailHeading: "ℹ️ Chi tiết công việc:",
-  acceptedAck:
-    "Đã ghi nhận bạn NHẬN việc. Nhấn “▶️ Bắt đầu” khi bạn khởi công.",
   startedAck: "Đã bắt đầu công việc. Chúc bạn làm việc thuận lợi! 💪",
-  askDonePhoto:
-    "Bạn hãy gửi 1 ảnh kết quả công việc. Hoặc gõ “bỏ qua” để hoàn tất không kèm ảnh.",
   doneAck:
     "Cảm ơn bạn! ✔️ Công việc đã được báo hoàn thành. Quản lý sẽ kiểm tra và xác nhận.",
   askIssueText: "Bạn đang gặp vấn đề gì? Hãy nhập mô tả ngắn gọn.",
@@ -158,4 +164,15 @@ export const copy = {
     "Bạn có thể: nhắn tin/gửi ảnh để cập nhật việc, gõ “ds” để xem danh sách " +
     "việc đang mở, hoặc bấm nút trên thẻ công việc.",
   genericAck: "Đã nhận. ✅",
+
+  /** Title of the Zalo `request_user_info` card (sent from the tester). */
+  requestInfoTitle: "Đời Sống Xanh muốn kết nối với bạn",
 };
+
+/** First task every linked employee gets so they can try the buttons safely. */
+export const ONBOARDING_TASK = {
+  title: "🌱 Việc làm quen: thử các nút Bắt đầu / Đã xong / Báo sự cố",
+  description:
+    "Đây là việc thử để bạn làm quen hệ thống, không ảnh hưởng công việc thật. " +
+    "Bạn cứ bấm ▶️ Bắt đầu, gửi ảnh/ghi chú, rồi ✔️ Đã xong — hoặc ⚠️ Báo sự cố.",
+} as const;

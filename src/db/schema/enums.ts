@@ -7,9 +7,7 @@ export const employeeStatus = pgEnum("employee_status", [
 ]);
 
 export const taskStatus = pgEnum("task_status", [
-  "new", // created, not yet sent to an employee
-  "assigned", // sent to the employee, awaiting acceptance
-  "accepted", // employee tapped "Nhận việc"
+  "assigned", // to do: created (maybe unassigned) or assigned, not started
   "in_progress", // employee tapped "Bắt đầu"
   "blocked", // employee reported an issue
   "done", // employee reported completion
@@ -46,7 +44,5 @@ export const conversationState = pgEnum("conversation_state", [
   "idle",
   "awaiting_link_code",
   "awaiting_issue_text",
-  "awaiting_done_note",
-  "awaiting_done_photo",
   "awaiting_task_pick",
 ]);

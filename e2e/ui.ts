@@ -46,8 +46,10 @@ export async function simulatorOpen(page: Page, zaloUserId: string) {
 }
 
 export async function simulatorSendText(page: Page, text: string) {
+  // Enter submits from the simulator input; avoids matching the real-send
+  // tester's "Gửi" button that shares the page.
   await page.getByPlaceholder("Nhập tin nhắn…").fill(text);
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
+  await page.getByPlaceholder("Nhập tin nhắn…").press("Enter");
 }
 
 export async function dragCard(page: Page, taskId: string, toColumn: string) {

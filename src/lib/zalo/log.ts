@@ -64,7 +64,6 @@ interface SendBodyShape {
     attachment?: {
       payload?: {
         template_type?: string;
-        text?: string;
         buttons?: { title?: string }[];
         elements?: { title?: string }[];
       };
@@ -77,21 +76,20 @@ export function describeSend(body: unknown): string {
   const message = (body as SendBodyShape)?.message;
   if (!message) return "payload=?";
 
-  if (message.text) return `text="${preview(message.text)}"`;
-
   const payload = message.attachment?.payload;
-  if (!payload) return "payload=?";
 
-  if (payload.template_type === "button") {
-    const titles = (payload.buttons ?? [])
+  if (payload?.buttons?.length) {
+    const titles = payload.buttons
       .map((button) => button.title)
       .join(" | ");
-    return `buttons="${preview(payload.text ?? "")}" [${titles}]`;
+    return `buttons="${preview(message.text ?? "")}" [${titles}]`;
   }
 
-  if (payload.template_type === "request_user_info") {
+  if (payload?.template_type === "request_user_info") {
     return `request_user_info title="${preview(payload.elements?.[0]?.title ?? "")}"`;
   }
 
-  return `attachment=${payload.template_type ?? "?"}`;
+  if (message.text) return `text="${preview(message.text)}"`;
+
+  return "payload=?";
 }

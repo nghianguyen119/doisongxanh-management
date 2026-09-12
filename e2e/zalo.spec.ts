@@ -121,7 +121,7 @@ test.describe("zalo linking", () => {
 });
 
 test.describe("task lifecycle over Zalo", () => {
-  test("accept -> start -> done -> manager verifies", async ({ page }) => {
+  test("start -> done -> manager verifies", async ({ page }) => {
     const employeeId = await createEmployeeViaUi(page, {
       name: e2eName("life"),
       phone: e2ePhone(),
@@ -140,10 +140,10 @@ test.describe("task lifecycle over Zalo", () => {
 
     await simulatorOpen(page, zaloUserId);
 
-    await simulatorSendText(page, `task:accept:${taskId}`);
-    await expect(page.getByText(/NHẬN việc/).first()).toBeVisible();
+    // Assignment already puts the task in "Cần làm"; the employee starts
+    // directly, there is no acceptance step.
     await expect.poll(async () => (await taskRow(taskId))?.status).toBe(
-      "accepted"
+      "assigned"
     );
 
     await simulatorSendText(page, `task:start:${taskId}`);
@@ -153,8 +153,9 @@ test.describe("task lifecycle over Zalo", () => {
     );
 
     await simulatorSendText(page, `task:done:${taskId}`);
-    await expect(page.getByText(/gửi 1 ảnh kết quả/).first()).toBeVisible();
-    await simulatorSendText(page, "bỏ qua");
+    await expect(
+      page.getByText(/đã được báo hoàn thành/).first()
+    ).toBeVisible();
     await expect.poll(async () => (await taskRow(taskId))?.status).toBe("done");
     expect((await taskRow(taskId))?.completed_at).not.toBeNull();
 

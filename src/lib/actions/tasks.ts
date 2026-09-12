@@ -189,7 +189,7 @@ export async function verifyTaskAction(
   }
 }
 
-/** Returns a started-but-unwanted task to the backlog (assignee cleared). */
+/** Returns a not-yet-started task to the unassigned pool (assignee cleared). */
 export async function unassignTaskAction(
   _prev: ActionResultState,
   formData: FormData,

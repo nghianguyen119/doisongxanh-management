@@ -12,9 +12,7 @@ type EmployeeStatus = (typeof employeeStatus.enumValues)[number];
 type TaskEventType = (typeof taskEventType.enumValues)[number];
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  new: "Mới tạo",
-  assigned: "Đã giao",
-  accepted: "Đã nhận",
+  assigned: "Cần làm",
   in_progress: "Đang làm",
   blocked: "Gặp sự cố",
   done: "Đã xong",
@@ -23,9 +21,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
-  new: "bg-gray-100 text-gray-700",
   assigned: "bg-blue-100 text-blue-700",
-  accepted: "bg-indigo-100 text-indigo-700",
   in_progress: "bg-amber-100 text-amber-800",
   blocked: "bg-red-100 text-red-700",
   done: "bg-emerald-100 text-emerald-700",
@@ -67,7 +63,6 @@ export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
 export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   assigned: "Thẻ giao việc",
   updated: "Cập nhật công việc",
-  accepted: "Xác nhận nhận việc",
   started: "Xác nhận bắt đầu",
   done: "Báo hoàn thành",
   issue: "Xác nhận sự cố",
@@ -77,9 +72,13 @@ export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   reminder: "Nhắc hạn",
 };
 
+/**
+ * Statuses where a task is still live and appears in the employee's list.
+ * `assigned` includes unassigned drafts; they have no assignee so they never
+ * reach an employee, but they count as open for the portal/dashboard.
+ */
 export const OPEN_TASK_STATUSES: TaskStatus[] = [
   "assigned",
-  "accepted",
   "in_progress",
   "blocked",
 ];

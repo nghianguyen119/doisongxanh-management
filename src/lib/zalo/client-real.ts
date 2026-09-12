@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { zaloMessageLog } from "@/db/schema";
+import { env } from "@/env";
 import type { ZaloClient } from "./client";
 import { describeSend, preview } from "./log";
 import type { SendResult, ZaloButton, ZaloProfile } from "./types";
@@ -32,11 +33,10 @@ export class RealZaloClient implements ZaloClient {
     return this.post(zaloUserId, "buttons", {
       recipient: { user_id: zaloUserId },
       message: {
+        text,
         attachment: {
           type: "template",
           payload: {
-            template_type: "button",
-            text,
             buttons: buttons.map((b) => ({
               type: "oa.query.hide",
               title: b.title,
@@ -63,7 +63,8 @@ export class RealZaloClient implements ZaloClient {
               {
                 title: text,
                 subtitle: "Nhấn để chia sẻ tên và số điện thoại",
-                image_url: "",
+                // Zalo rejects an empty/relative image_url (-201).
+                image_url: `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/logo.png`,
               },
             ],
           },

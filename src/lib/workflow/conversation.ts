@@ -12,14 +12,14 @@ import { parseTaskPick, pickPage, sortOpenTasks } from "./task-pick";
 import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
 import * as notify from "./notification-service";
+import { onboardEmployee } from "./onboarding";
 import { isClosed } from "./task-status";
 
-const SKIP_WORDS = ["bỏ qua", "bo qua", "skip", "không", "khong", "ko"];
-
 /**
- * A half-finished flow ("we asked for a photo") is abandoned after this long.
- * Without it an employee who taps "Đã xong" and then wanders off stays stuck
- * forever: every later message would be swallowed as a completion note.
+ * A half-finished flow ("we asked for an issue description") is abandoned
+ * after this long. Without it an employee who taps "Báo sự cố" and then
+ * wanders off stays stuck forever: every later message would be swallowed as
+ * an issue note.
  */
 const STATE_TTL_MS = 30 * 60 * 1000;
 
@@ -30,7 +30,6 @@ type TaskRow = typeof task.$inferSelect;
 /** Conversation context: in-flight flow task + the sticky "current task". */
 type ConvContext = {
   taskId?: string;
-  note?: string;
   /** Where the next free-form message goes; null once the task is gone. */
   activeTaskId?: string | null;
   /** The numbered list the employee is choosing from. */
@@ -266,42 +265,6 @@ export async function handleInboundText(zaloUserId: string, text: string) {
       await setState(zaloUserId, "idle");
       return reportFailure(zaloUserId, res);
     }
-
-    case "awaiting_done_note": {
-      if (!ctx.taskId) break;
-      console.log(
-        `[zalo:task] done note task=${ctx.taskId} from=${emp.id} note="${preview(text)}"`,
-      );
-      const res = await tasks.completeTask({
-        taskId: ctx.taskId,
-        employeeId: emp.id,
-        note: text,
-      });
-      await setState(zaloUserId, "idle");
-      return reportFailure(zaloUserId, res);
-    }
-
-    case "awaiting_done_photo": {
-      if (!ctx.taskId) break;
-      if (isSkip(text)) {
-        console.log(
-          `[zalo:task] done without photo task=${ctx.taskId} from=${emp.id}`,
-        );
-        const res = await tasks.completeTask({
-          taskId: ctx.taskId,
-          employeeId: emp.id,
-          note: ctx.note ?? null,
-        });
-        await setState(zaloUserId, "idle");
-        return reportFailure(zaloUserId, res);
-      }
-      // Treat it as the completion note and keep waiting for the photo.
-      console.log(
-        `[zalo:task] done note stored, waiting photo task=${ctx.taskId} from=${emp.id}`,
-      );
-      await setState(zaloUserId, "awaiting_done_photo", { ...ctx, note: text });
-      return say(zaloUserId, copy.askDonePhoto);
-    }
   }
 
   return handleIdleText(zaloUserId, emp, text);
@@ -313,20 +276,6 @@ export async function handleInboundImage(zaloUserId: string, urls: string[]) {
 
   const conv = await getConversation(zaloUserId);
   const ctx = conv.context as ConvContext;
-
-  if (conv.state === "awaiting_done_photo" && ctx.taskId) {
-    console.log(
-      `[zalo:task] done photo task=${ctx.taskId} from=${emp.id} files=${urls.length}`,
-    );
-    const res = await tasks.completeTask({
-      taskId: ctx.taskId,
-      employeeId: emp.id,
-      note: ctx.note ?? null,
-      attachmentUrls: urls,
-    });
-    await setState(zaloUserId, "idle");
-    return reportFailure(zaloUserId, res);
-  }
 
   if (conv.state === "awaiting_issue_text" && ctx.taskId) {
     // Photo first, description still to come — attach it to the issue.
@@ -418,10 +367,6 @@ export async function handleUserInfo(
 // Internals
 // ---------------------------------------------------------------------------
 
-function isSkip(text: string) {
-  return SKIP_WORDS.includes(text.trim().toLowerCase());
-}
-
 async function handleTaskAction(
   zaloUserId: string,
   action: string,
@@ -463,24 +408,21 @@ async function handleTaskAction(
   );
 
   switch (action) {
-    case "accept": {
-      const res = await tasks.acceptTask({ taskId, employeeId: emp.id });
-      if (res.ok) await mergeContext(zaloUserId, { activeTaskId: taskId });
-      return reportFailure(zaloUserId, res);
-    }
     case "start": {
       const res = await tasks.startTask({ taskId, employeeId: emp.id });
       if (res.ok) await mergeContext(zaloUserId, { activeTaskId: taskId });
       return reportFailure(zaloUserId, res);
     }
-    case "done":
-      // Tapping a card is a strong signal of which task they mean, so it
-      // becomes the sticky target too.
-      await setState(zaloUserId, "awaiting_done_photo", {
-        taskId,
-        activeTaskId: taskId,
-      });
-      return say(zaloUserId, copy.askDonePhoto);
+    case "done": {
+      // Photos/notes are sent before this tap and stored as comments; the
+      // completion itself needs no follow-up question. Clear any half-finished
+      // flow so the next message cannot be mistaken for it.
+      const res = await tasks.completeTask({ taskId, employeeId: emp.id });
+      if (res.ok) {
+        await setState(zaloUserId, "idle", { activeTaskId: taskId });
+      }
+      return reportFailure(zaloUserId, res);
+    }
     case "issue":
       await setState(zaloUserId, "awaiting_issue_text", {
         taskId,
@@ -511,7 +453,9 @@ async function handleUnlinkedText(zaloUserId: string, text: string) {
   );
   if (res.ok) {
     await setState(zaloUserId, "idle");
-    return say(zaloUserId, copy.linkSuccess(res.name));
+    await say(zaloUserId, copy.linkSuccess(res.name));
+    await onboardEmployee(res.employeeId);
+    return;
   }
   return say(
     zaloUserId,

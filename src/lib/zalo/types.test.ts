@@ -5,10 +5,10 @@ describe("BUTTON_PAYLOAD", () => {
   const uuid = "11111111-2222-3333-4444-555555555555";
 
   it("round-trips action + taskId", () => {
-    const encoded = BUTTON_PAYLOAD.encode("accept", uuid);
-    expect(encoded).toBe(`task:accept:${uuid}`);
+    const encoded = BUTTON_PAYLOAD.encode("start", uuid);
+    expect(encoded).toBe(`task:start:${uuid}`);
     expect(BUTTON_PAYLOAD.decode(encoded)).toEqual({
-      action: "accept",
+      action: "start",
       taskId: uuid,
     });
   });
@@ -22,6 +22,6 @@ describe("BUTTON_PAYLOAD", () => {
 
   it("returns null for non-button text", () => {
     expect(BUTTON_PAYLOAD.decode("xin chào")).toBeNull();
-    expect(BUTTON_PAYLOAD.decode("task:accept:not-a-uuid")).toBeNull();
+    expect(BUTTON_PAYLOAD.decode("task:start:not-a-uuid")).toBeNull();
   });
 });

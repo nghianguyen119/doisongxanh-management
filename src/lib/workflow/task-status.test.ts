@@ -40,14 +40,19 @@ describe("task status transitions", () => {
   });
 
   it("allows the normal happy path", () => {
-    expect(canTransition("assigned", "accepted")).toBe(true);
-    expect(canTransition("accepted", "in_progress")).toBe(true);
+    expect(canTransition("assigned", "in_progress")).toBe(true);
     expect(canTransition("in_progress", "done")).toBe(true);
     expect(canTransition("done", "verified")).toBe(true);
   });
 
+  it("has no acceptance step: assigned work can start immediately", () => {
+    expect(taskStatus.enumValues).not.toContain("accepted");
+    expect(canTransition("assigned", "in_progress")).toBe(true);
+    expect(canTransition("assigned", "done")).toBe(true);
+  });
+
   it("allows reporting an issue at any point while the work is live", () => {
-    for (const from of ["assigned", "accepted", "in_progress", "done"] as const) {
+    for (const from of ["assigned", "in_progress", "done"] as const) {
       expect(canTransition(from, "blocked")).toBe(true);
     }
   });
@@ -56,11 +61,16 @@ describe("task status transitions", () => {
     expect(canTransition("done", "in_progress")).toBe(true);
   });
 
-  it("returns only unstarted work to the backlog", () => {
-    expect(canTransition("assigned", "new")).toBe(true);
-    expect(canTransition("accepted", "new")).toBe(false);
-    expect(canTransition("in_progress", "new")).toBe(false);
-    expect(canTransition("blocked", "new")).toBe(false);
+  it("lets a manager reset any live work to the single to-do state", () => {
+    for (const from of [
+      "assigned",
+      "in_progress",
+      "blocked",
+      "done",
+      "cancelled",
+    ] as const) {
+      expect(canTransition(from, "assigned")).toBe(true);
+    }
   });
 
   it("only verifies work that was reported done", () => {

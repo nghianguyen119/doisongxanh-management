@@ -144,7 +144,7 @@ export async function createTask(input: {
   priority?: TaskRow["priority"];
   dueAt?: Date | null;
   assigneeId?: string | null;
-  createdBy: string;
+  createdBy: string | null;
 }): Promise<{ task: TaskRow; zalo?: NotifyResult }> {
   const [row] = await db
     .insert(task)
@@ -157,7 +157,13 @@ export async function createTask(input: {
     })
     .returning();
 
-  await logEvent(row.id, "created", { type: "manager", id: input.createdBy });
+  await logEvent(
+    row.id,
+    "created",
+    input.createdBy
+      ? { type: "manager", id: input.createdBy }
+      : { type: "system", id: null },
+  );
 
   if (input.assigneeId) {
     const res = await assignTask({
@@ -226,7 +232,7 @@ export async function updateTask(input: {
 export async function assignTask(input: {
   taskId: string;
   assigneeId: string;
-  actorId: string;
+  actorId: string | null;
 }): Promise<TaskResult> {
   // Inactive staff cannot be assigned new work (and the FK would otherwise
   // fail for an id that does not exist at all).
@@ -245,9 +251,14 @@ export async function assignTask(input: {
   });
   if (!res.ok) return res;
 
-  await logEvent(input.taskId, "assigned", { type: "manager", id: input.actorId }, {
-    assigneeId: input.assigneeId,
-  });
+  await logEvent(
+    input.taskId,
+    "assigned",
+    input.actorId
+      ? { type: "manager", id: input.actorId }
+      : { type: "system", id: null },
+    { assigneeId: input.assigneeId },
+  );
 
   const zalo = await notifyEmployee(
     input.taskId,
@@ -262,22 +273,34 @@ export async function unassignTask(input: {
   taskId: string;
   actorId: string;
 }): Promise<TaskResult> {
-  // Only work that has not started can go back to the backlog.
-  const res = await transition(input.taskId, "new", {
-    assigneeId: null,
-    assignedAt: null,
-    completedAt: null,
-    lastRemindedAt: null,
-  });
-  if (!res.ok) return res;
+  // Only work that has not started can go back to the unassigned pool. The
+  // status check sits in the WHERE clause so it is atomic with the clear.
+  const [row] = await db
+    .update(task)
+    .set({
+      assigneeId: null,
+      assignedAt: null,
+      completedAt: null,
+      lastRemindedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(task.id, input.taskId), eq(task.status, "assigned")))
+    .returning();
+
+  if (!row) {
+    const current = await getTask(input.taskId);
+    return current
+      ? { ok: false, reason: "invalid_transition", task: current }
+      : { ok: false, reason: "not_found" };
+  }
 
   await logEvent(
     input.taskId,
     "status_changed",
     { type: "manager", id: input.actorId },
-    { to: "new", reason: "unassigned" },
+    { reason: "unassigned" },
   );
-  return res;
+  return { ok: true, task: row };
 }
 
 export async function verifyTask(input: {
@@ -346,8 +369,8 @@ export async function addManagerComment(input: {
 
 /**
  * Board move: a manager drops a card into another column. The transition table
- * still guards what is legal, `assigned` needs an assignee, and going back to
- * `new` clears the assignment.
+ * still guards what is legal and `assigned` needs an assignee; the assignee is
+ * kept when a card is dragged back to the "Cần làm" column.
  */
 export async function moveTaskTo(input: {
   taskId: string;
@@ -381,11 +404,7 @@ export async function moveTaskTo(input: {
     // Match the Zalo completion path; `transition` only clears it otherwise.
     extra.completedAt = new Date();
   }
-  if (input.to === "new") {
-    extra.assigneeId = null;
-    extra.assignedAt = null;
-    extra.lastRemindedAt = null;
-  } else if (OPEN_TASK_STATUSES.includes(input.to)) {
+  if (OPEN_TASK_STATUSES.includes(input.to)) {
     // Moving back into an open column deserves fresh reminders.
     extra.lastRemindedAt = null;
   }
@@ -405,27 +424,6 @@ export async function moveTaskTo(input: {
 // ---------------------------------------------------------------------------
 // Employee-initiated (called from the conversation state machine)
 // ---------------------------------------------------------------------------
-
-export async function acceptTask(input: {
-  taskId: string;
-  employeeId: string;
-}): Promise<TaskResult> {
-  const res = await transition(input.taskId, "accepted");
-  if (!res.ok) return res;
-
-  await logEvent(input.taskId, "status_changed", {
-    type: "employee",
-    id: input.employeeId,
-  }, { to: "accepted" });
-
-  const zalo = await notifyEmployee(
-    input.taskId,
-    "accepted",
-    await assigneeZaloId(res.task),
-    (z) => notify.notifyAccepted(toCard(res.task), z),
-  );
-  return { ...res, zalo };
-}
 
 export async function startTask(input: {
   taskId: string;
@@ -451,18 +449,14 @@ export async function startTask(input: {
 export async function completeTask(input: {
   taskId: string;
   employeeId: string;
-  note?: string | null;
-  attachmentUrls?: string[];
 }): Promise<TaskResult> {
   const res = await transition(input.taskId, "done", { completedAt: new Date() });
   if (!res.ok) return res;
 
-  const eventId = await logEvent(input.taskId, "status_changed", {
+  await logEvent(input.taskId, "status_changed", {
     type: "employee",
     id: input.employeeId,
-  }, { to: "done", note: input.note ?? null });
-
-  await saveAttachments(input.taskId, eventId, input.attachmentUrls);
+  }, { to: "done" });
 
   const zalo = await notifyEmployee(
     input.taskId,

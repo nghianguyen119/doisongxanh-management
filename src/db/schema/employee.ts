@@ -26,6 +26,8 @@ export const employee = pgTable(
     status: employeeStatus().notNull().default("invited"),
     zaloUserId: text().unique(),
     zaloDisplayName: text(),
+    /** Set once the guide message + practice task have been sent. */
+    onboardedAt: timestamp({ withTimezone: true }),
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

@@ -12,6 +12,7 @@ import {
   linkByManualZaloId,
   parsePhone,
 } from "@/lib/workflow/employee-linking";
+import { onboardEmployee } from "@/lib/workflow/onboarding";
 
 const employeeProfileSchema = z.object({
   name: z.string().trim().min(1, "Nhập tên nhân viên").max(120),
@@ -157,6 +158,7 @@ export async function linkManualAction(
             : "Không kết nối được.",
       };
     }
+    await onboardEmployee(employeeId);
     revalidatePath(`/employees/${employeeId}`);
     return { success: true };
   } catch (err) {

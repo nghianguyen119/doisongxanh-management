@@ -53,12 +53,14 @@ the bot sends back.
 
 1. `/employees` → open **Trần Thị B** → **Tạo mã mời**. Copy the 4-letter code.
 2. `/settings/zalo` simulator → type the code as Zalo user `zalo-new-user` → the
-   employee links and flips to *Đang hoạt động*.
+   employee links and flips to *Đang hoạt động*. They also receive the onboarding
+   guide and a practice task to try the buttons risk-free.
 3. `/tasks/new` → create a task, assign to **Nguyễn Văn A** → an outbound card
    with buttons appears in the simulator for `zalo-demo-1`.
-4. Simulator: tap **✅ Nhận việc** → **▶️ Bắt đầu** → **✔️ Đã xong** → send an
-   image. The task on `/tasks/[id]` moves `assigned → accepted → in_progress →
-   done`, the timeline fills in and the photo shows in the gallery.
+4. Simulator: tap **▶️ Bắt đầu** → send an image → tap **✔️ Đã xong**. The task
+   on `/tasks/[id]` moves `assigned → in_progress → done`, the timeline fills in
+   and the photo shows in the gallery. (No acceptance step, and *Đã xong*
+   completes immediately — any photo/note is sent beforehand.)
 5. Tap **⚠️ Báo sự cố** then send text → task goes to *Gặp sự cố* with the note.
 
 ## Going live with a real Zalo OA

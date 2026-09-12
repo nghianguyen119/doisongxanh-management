@@ -26,7 +26,7 @@ test.describe("tasks", () => {
 
     await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
     await expect(
-      page.locator("main").getByText("Đã giao", { exact: true }).first()
+      page.locator("main").getByText("Cần làm", { exact: true }).first()
     ).toBeVisible();
     const timeline = page.locator("main ol");
     await expect(timeline.getByText("Tạo công việc", { exact: true })).toBeVisible();
@@ -37,17 +37,19 @@ test.describe("tasks", () => {
     expect(row?.assignee_id).toBe(employeeId);
   });
 
-  test("creates an unassigned task in Mới tạo", async ({ page }) => {
+  test("creates an unassigned task in the same Cần làm state", async ({
+    page,
+  }) => {
     const title = e2eTitle("draft");
     const taskId = await createTaskViaUi(page, { title });
     await expect(
-      page.locator("main").getByText("Mới tạo", { exact: true }).first()
+      page.locator("main").getByText("Cần làm", { exact: true }).first()
     ).toBeVisible();
     await expect(
       page.locator("main").getByText("Chưa giao", { exact: true }).first()
     ).toBeVisible();
     const row = await taskRow(taskId);
-    expect(row?.status).toBe("new");
+    expect(row?.status).toBe("assigned");
     expect(row?.assignee_id).toBeNull();
   });
 
@@ -69,19 +71,30 @@ test.describe("tasks", () => {
   });
 
   test("assigns and unassigns a task", async ({ page }) => {
-    const employeeId = await makeEmployee(page);
+    const name = e2eName("task-owner");
+    const employeeId = await createEmployeeViaUi(page, {
+      name,
+      phone: e2ePhone(),
+    });
     const title = e2eTitle("assign");
     const taskId = await createTaskViaUi(page, { title });
 
+    await expect(
+      page.locator("main").getByText("Chưa giao", { exact: true }).first()
+    ).toBeVisible();
+
     await page.locator('select[name="assigneeId"]').selectOption(employeeId);
     await page.getByRole("button", { name: "Giao / Gửi lại Zalo" }).click();
-    await expect(page.locator("main").getByText("Đã giao", { exact: true }).first()).toBeVisible();
+    await expect(page.locator("main").getByRole("link", { name })).toBeVisible();
     expect((await taskRow(taskId))?.status).toBe("assigned");
+    expect((await taskRow(taskId))?.assignee_id).toBe(employeeId);
 
-    await page.getByRole("button", { name: "Bỏ giao (về Mới tạo)" }).click();
-    await expect(page.locator("main").getByText("Mới tạo", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Bỏ giao (về Cần làm)" }).click();
+    await expect(
+      page.locator("main").getByText("Chưa giao", { exact: true }).first()
+    ).toBeVisible();
     const row = await taskRow(taskId);
-    expect(row?.status).toBe("new");
+    expect(row?.status).toBe("assigned");
     expect(row?.assignee_id).toBeNull();
   });
 
@@ -127,7 +140,7 @@ test.describe("tasks", () => {
     await expect(row).toBeVisible();
 
     await page.getByRole("toolbar").getByRole("button", { name: "Trạng thái" }).click();
-    await page.getByRole("option", { name: "Mới tạo" }).click();
+    await page.getByRole("option", { name: "Cần làm" }).click();
     await page.keyboard.press("Escape");
     await expect(row).toBeVisible();
     await expect(page.getByText("Không có dữ liệu.")).toHaveCount(0);

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/card"
 
 export type SectionCardsStats = {
-  /** assigned + accepted + in_progress + blocked */
+  /** assigned + in_progress + blocked */
   open: number
   overdue: number
   /** done, waiting for manager verification */
