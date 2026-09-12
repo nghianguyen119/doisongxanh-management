@@ -143,6 +143,9 @@ export const copy = {
   taskClosed:
     "Công việc này đã kết thúc nên không cập nhật được nữa. Nếu cần, vui lòng báo quản lý.",
   taskNotYours: "Công việc này hiện không thuộc về bạn.",
+  /** The task moved while the tap was in flight; ask for a fresh look. */
+  taskStateChanged:
+    "Công việc vừa thay đổi trạng thái. Bạn xem thẻ công việc mới nhất giúp mình nhé.",
 
   managerComment: (text: string) => `💬 Quản lý: ${text}`,
   commentAck: (title: string) => `Đã ghi nhận vào việc “${title}”. 📨`,

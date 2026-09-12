@@ -33,6 +33,18 @@ export const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
 /** Statuses an employee can no longer act on from a stale Zalo button. */
 export const CLOSED_STATUSES: TaskStatus[] = ["verified", "cancelled"];
 
+/**
+ * Zalo button action -> the status it moves the task to. Used to recognise a
+ * tap whose action already took effect (the employee hammered the button
+ * because of network latency): the handler then stays quiet instead of
+ * replying "công việc đã kết thúc".
+ */
+export const ACTION_TARGET_STATUS: Record<string, TaskStatus | undefined> = {
+  start: "in_progress",
+  done: "done",
+  issue: "blocked",
+};
+
 export function isClosed(status: TaskStatus): boolean {
   return CLOSED_STATUSES.includes(status);
 }

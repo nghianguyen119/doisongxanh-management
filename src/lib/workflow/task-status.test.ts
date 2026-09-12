@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { taskStatus } from "@/db/schema";
 import {
+  ACTION_TARGET_STATUS,
   TRANSITIONS,
   canTransition,
   isClosed,
@@ -92,5 +93,12 @@ describe("task status transitions", () => {
     expect(isClosed("cancelled")).toBe(true);
     expect(isClosed("done")).toBe(false);
     expect(isClosed("blocked")).toBe(false);
+  });
+
+  it("maps button actions to the state they produce", () => {
+    expect(ACTION_TARGET_STATUS.start).toBe("in_progress");
+    expect(ACTION_TARGET_STATUS.done).toBe("done");
+    expect(ACTION_TARGET_STATUS.issue).toBe("blocked");
+    expect(ACTION_TARGET_STATUS.detail).toBeUndefined();
   });
 });

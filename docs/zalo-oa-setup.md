@@ -344,6 +344,7 @@ OA quality/reporting in OA Manager also affects limits.
 | `Zalo OA not initialised` | `ZALO_OA_REFRESH_TOKEN` missing and no `zalo_oa_token` row. Re-run §3.E. |
 | `Zalo token refresh failed: invalid refresh token` | Refresh token was already used/expired. Re-run §3.E and clear the row (see §5.1). |
 | Button tap does nothing | Buttons are sent as `oa.query.hide`; the tap arrives as `user_send_text`. If payloads are missing, confirm the card was actually delivered and the task still belongs to that employee. |
+| Employee taps a button several times and gets a wall of replies | Only the first tap is applied. Identical taps within 10 s are ignored, and a tap whose action already took effect (e.g. “Bắt đầu” on a task that is already *Đang làm*) is answered silently — no more “công việc đã kết thúc” spam. |
 | `error=-201 … Missing template_type params` | The card used an unsupported `template_type`. Zalo's CS button format is `message.text` + `message.attachment.payload.buttons` with no `template_type` (see `client-real.ts#sendButtons`). |
 | `user_submit_info` never arrives | Subscribe the event if you want shared contact details logged for the customer inbox. It is no longer used for linking. |
 | Assign works but the employee gets no Zalo card | The assignee has no `zaloUserId` (status *Chờ kết nối*), or the 7-day window/send failed — check the log. |

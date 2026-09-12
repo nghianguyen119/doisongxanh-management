@@ -13,7 +13,7 @@ import * as tasks from "./task-service";
 import type { TaskResult } from "./task-service";
 import * as notify from "./notification-service";
 import { onboardEmployee } from "./onboarding";
-import { isClosed } from "./task-status";
+import { ACTION_TARGET_STATUS, isClosed } from "./task-status";
 
 /**
  * A half-finished flow ("we asked for an issue description") is abandoned
@@ -22,6 +22,12 @@ import { isClosed } from "./task-status";
  * an issue note.
  */
 const STATE_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Identical button payloads arriving inside this window are the same physical
+ * tap retried on a slow connection; only the first one is handled.
+ */
+const TAP_DEDUPE_MS = 10 * 1000;
 
 type EmployeeRow = typeof employee.$inferSelect;
 type ConvRow = typeof zaloConversation.$inferSelect;
@@ -32,6 +38,9 @@ type ConvContext = {
   taskId?: string;
   /** Where the next free-form message goes; null once the task is gone. */
   activeTaskId?: string | null;
+  /** Last button tap (`<action>:<taskId>`) and when it was handled. */
+  lastTap?: string;
+  lastTapAt?: number;
   /** The numbered list the employee is choosing from. */
   pick?: {
     options: string[];
@@ -232,6 +241,32 @@ async function reportFailure(zaloUserId: string, res: TaskResult) {
   );
 }
 
+/**
+ * Same idea, but for Zalo button actions where a duplicate tap is expected.
+ * A lost race with the tap that succeeded must not produce a reply — the
+ * employee already got the acknowledgement for it.
+ */
+async function reportActionFailure(
+  zaloUserId: string,
+  action: string,
+  res: TaskResult,
+) {
+  if (res.ok) return;
+  const status = res.task?.status;
+  if (status && status === ACTION_TARGET_STATUS[action]) {
+    console.log(
+      `[zalo:task] action=${action} task=${res.task?.id ?? "?"} lost race, already ${status} -> no reply`,
+    );
+    return;
+  }
+  console.log(
+    `[zalo:task] action=${action} rejected from=${zaloUserId} reason=${res.reason} task=${res.task?.id ?? "?"} status=${status ?? "?"}`,
+  );
+  if (res.reason === "not_found") return say(zaloUserId, copy.noActiveTask);
+  if (status && isClosed(status)) return say(zaloUserId, copy.taskClosed);
+  return say(zaloUserId, copy.taskStateChanged);
+}
+
 // ---------------------------------------------------------------------------
 // Entry points (called by dispatch.ts)
 // ---------------------------------------------------------------------------
@@ -382,6 +417,19 @@ async function handleTaskAction(
     return;
   }
 
+  // Retries of the same tap on a slow connection: handle the burst once.
+  const conv = await getConversation(zaloUserId);
+  const ctx = conv.context as ConvContext;
+  const tapKey = `${action}:${taskId}`;
+  const now = Date.now();
+  if (ctx.lastTap === tapKey && now - (ctx.lastTapAt ?? 0) < TAP_DEDUPE_MS) {
+    console.log(
+      `[zalo:task] action=${action} task=${taskId} duplicate tap -> ignored`,
+    );
+    return;
+  }
+  await mergeContext(zaloUserId, { lastTap: tapKey, lastTapAt: now });
+
   const t = await db.query.task.findFirst({ where: eq(task.id, taskId) });
   if (!t) {
     console.log(`[zalo:task] action=${action} task=${taskId} not found`);
@@ -403,6 +451,16 @@ async function handleTaskAction(
     return say(zaloUserId, copy.taskClosed);
   }
 
+  // The action already took effect (a delayed duplicate tap): the first tap
+  // was acknowledged, so answering again would only spam the chat.
+  const target = ACTION_TARGET_STATUS[action];
+  if (target && t.status === target) {
+    console.log(
+      `[zalo:task] action=${action} task=${taskId} already ${t.status} -> ignored`,
+    );
+    return;
+  }
+
   console.log(
     `[zalo:task] action=${action} task=${taskId} employee=${emp.id} status=${t.status}`,
   );
@@ -411,7 +469,7 @@ async function handleTaskAction(
     case "start": {
       const res = await tasks.startTask({ taskId, employeeId: emp.id });
       if (res.ok) await mergeContext(zaloUserId, { activeTaskId: taskId });
-      return reportFailure(zaloUserId, res);
+      return reportActionFailure(zaloUserId, action, res);
     }
     case "done": {
       // Photos/notes are sent before this tap and stored as comments; the
@@ -421,7 +479,7 @@ async function handleTaskAction(
       if (res.ok) {
         await setState(zaloUserId, "idle", { activeTaskId: taskId });
       }
-      return reportFailure(zaloUserId, res);
+      return reportActionFailure(zaloUserId, action, res);
     }
     case "issue":
       await setState(zaloUserId, "awaiting_issue_text", {
