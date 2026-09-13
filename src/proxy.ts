@@ -6,8 +6,11 @@ import { isDevAuthBypassed } from "@/env";
  * Next.js 16 renamed `middleware` -> `proxy` (nodejs runtime, not edge).
  * This is only an optimistic gate based on cookie presence; real
  * authorization happens in server components via `requireUser()`.
+ *
+ * `/my` is the employee-facing read-only page; it authenticates with its own
+ * signed token and must stay reachable without a manager session.
  */
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/my"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

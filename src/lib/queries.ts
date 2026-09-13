@@ -464,6 +464,35 @@ export async function getEmployeeDetail(id: string) {
   return { employee: emp, tasks, activeInvite };
 }
 
+/**
+ * Latest `issue_reported` text per task, for the read-only employee page
+ * (`/my/tasks`). Tasks without a usable text are omitted; callers fall back
+ * to a generic message.
+ */
+export async function getLatestIssueTexts(
+  taskIds: string[],
+): Promise<Map<string, string>> {
+  if (taskIds.length === 0) return new Map();
+
+  const rows = await db.query.taskEvent.findMany({
+    where: and(
+      inArray(taskEvent.taskId, taskIds),
+      eq(taskEvent.type, "issue_reported"),
+    ),
+    orderBy: desc(taskEvent.createdAt),
+  });
+
+  const latest = new Map<string, string>();
+  for (const row of rows) {
+    if (latest.has(row.taskId)) continue;
+    const text = row.payload.text;
+    if (typeof text === "string" && text.trim()) {
+      latest.set(row.taskId, text.trim());
+    }
+  }
+  return latest;
+}
+
 export async function listActiveEmployeesForSelect() {
   return db
     .select({

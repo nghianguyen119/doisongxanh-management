@@ -13,6 +13,14 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(16),
     BETTER_AUTH_URL: z.string().url(),
 
+    /**
+     * Optional signing key for read-only "Việc của tôi" employee links
+     * (src/lib/employee-link.ts). Falls back to BETTER_AUTH_SECRET when unset,
+     * so links work out of the box; rotating either secret invalidates old
+     * links.
+     */
+    EMPLOYEE_LINK_SECRET: z.string().optional().default(""),
+
     GOOGLE_CLIENT_ID: z.string().optional().default(""),
     GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
     ALLOWED_MANAGER_EMAILS: z.string().optional().default(""),
@@ -51,6 +59,7 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    EMPLOYEE_LINK_SECRET: process.env.EMPLOYEE_LINK_SECRET,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     ALLOWED_MANAGER_EMAILS: process.env.ALLOWED_MANAGER_EMAILS,

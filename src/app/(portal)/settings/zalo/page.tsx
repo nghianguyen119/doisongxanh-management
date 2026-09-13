@@ -4,10 +4,11 @@ import { employee } from "@/db/schema";
 import { env, isRealSendTesterEnabled, isSimulatorEnabled } from "@/env";
 import { PageHeader } from "@/components/ui";
 import { Card } from "@/components/ui/card";
-import { listRecentClientMessages } from "@/lib/queries";
+import { listActiveEmployeesForSelect, listRecentClientMessages } from "@/lib/queries";
 import { formatVNShort } from "@/lib/time";
 import { describeInbound } from "@/lib/zalo/log";
 import { RealTester } from "./real-tester";
+import { EmployeeLinkTester } from "./employee-link-tester";
 import { Simulator } from "./simulator";
 
 export default async function ZaloSettingsPage() {
@@ -17,6 +18,7 @@ export default async function ZaloSettingsPage() {
     orderBy: desc(employee.updatedAt),
   });
   const clientMessages = await listRecentClientMessages();
+  const employees = await listActiveEmployeesForSelect();
 
   const webhookUrl = `${env.NEXT_PUBLIC_APP_URL}/api/zalo/webhook`;
 
@@ -118,6 +120,12 @@ export default async function ZaloSettingsPage() {
           không chạy ở chế độ production.
         </Card>
       )}
+
+      <div className="mt-6">
+        <EmployeeLinkTester
+          employees={employees.map((e) => ({ id: e.id, name: e.name }))}
+        />
+      </div>
 
       {isRealSendTesterEnabled() && (
         <div className="mt-6">

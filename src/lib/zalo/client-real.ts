@@ -37,11 +37,19 @@ export class RealZaloClient implements ZaloClient {
         attachment: {
           type: "template",
           payload: {
-            buttons: buttons.map((b) => ({
-              type: "oa.query.hide",
-              title: b.title,
-              payload: b.payload,
-            })),
+            buttons: buttons.map((b) =>
+              b.url !== undefined
+                ? {
+                    type: "oa.open.url",
+                    title: b.title,
+                    payload: { url: b.url },
+                  }
+                : {
+                    type: "oa.query.hide",
+                    title: b.title,
+                    payload: b.payload,
+                  },
+            ),
           },
         },
       },

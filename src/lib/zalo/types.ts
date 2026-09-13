@@ -22,11 +22,15 @@ export type InboundEvent =
       raw?: unknown;
     };
 
-/** A payload-style button (Zalo type `oa.query.hide`). */
-export interface ZaloButton {
-  title: string;
-  payload: string;
-}
+/**
+ * An interactive Zalo button. Two shapes exist and are mutually exclusive:
+ *  - payload button (`oa.query.hide`): a tap sends `payload` back as a normal
+ *    text message, which `BUTTON_PAYLOAD` decodes (see top comment).
+ *  - URL button (`oa.open.url`): a tap opens `url` in the built-in browser.
+ */
+export type ZaloButton =
+  | { title: string; payload: string; url?: never }
+  | { title: string; url: string; payload?: never };
 
 export interface SendResult {
   messageId: string;
