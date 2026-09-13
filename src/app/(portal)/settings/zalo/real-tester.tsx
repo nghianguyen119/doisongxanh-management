@@ -53,7 +53,7 @@ export function RealTester({ linked }: { linked: LinkedEmployee[] }) {
     <Card className="gap-0 p-5">
       <h2 className="font-semibold">Gửi thật (live) để kiểm tra template</h2>
       <p className="mt-1 mb-3 text-xs text-muted-foreground">
-        Gửi trực tiếp qua Zalo OA API bằng access token trong database — kể cả
+        Gửi trực tiếp qua API Zalo công ty bằng access token trong database — kể cả
         khi chế độ đang là <code>mock</code>. Chỉ hiện khi chạy local. Mỗi lần
         gửi được ghi vào <code>zalo_message_log</code>.
       </p>

@@ -53,7 +53,7 @@ function testTask(): TaskCardInput {
   return {
     id: "00000000-0000-4000-8000-000000000000",
     ref: "DSX-0",
-    title: "Việc kiểm thử từ trang Zalo OA",
+    title: "Việc kiểm thử từ trang Zalo công ty",
     description: "Tin gửi thử, không phải việc thật.",
     priority: "normal",
     dueAt: new Date(Date.now() + 2 * 60 * 60 * 1000),

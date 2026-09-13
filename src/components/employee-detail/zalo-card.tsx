@@ -127,7 +127,7 @@ export function ZaloCard({
                 />
               </div>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                Nhân viên gửi mã này cho Zalo OA để kết nối.
+                Nhân viên gửi mã này cho Zalo công ty để kết nối.
               </p>
             </div>
           ) : (

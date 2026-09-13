@@ -10,7 +10,7 @@ const SECTION_TITLES: [prefix: string, title: string][] = [
   ["/tasks", "Công việc"],
   ["/kanban", "Bảng tiến độ"],
   ["/employees", "Nhân viên"],
-  ["/settings/zalo", "Zalo OA"],
+  ["/settings/zalo", "Zalo công ty"],
 ]
 
 export function SiteHeader({ zaloMock }: { zaloMock?: boolean }) {

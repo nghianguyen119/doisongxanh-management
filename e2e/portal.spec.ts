@@ -8,7 +8,7 @@ const PAGES: [path: string, heading: string, level: 1 | 2][] = [
   ["/tasks/new", "Tạo công việc", 1],
   ["/employees", "Nhân viên", 1],
   ["/kanban", "Bảng tiến độ", 1],
-  ["/settings/zalo", "Zalo OA", 1],
+  ["/settings/zalo", "Zalo công ty", 1],
 ];
 
 test.describe("portal pages", () => {

@@ -5,6 +5,10 @@ import { BUTTON_PAYLOAD, COMMAND_PAYLOAD, type ZaloButton } from "@/lib/zalo/typ
  * Every Vietnamese string the Zalo bot sends lives here so copy can be tuned
  * in one place. `task` is a minimal shape to avoid importing DB types.
  */
+
+/** Public link to the company Zalo account employees must follow. */
+export const ZALO_COMPANY_URL = "https://zalo.me/3275241228585114260";
+
 export interface TaskCardInput {
   id: string;
   /** Human-facing reference, e.g. `DSX-12`. */
@@ -119,7 +123,8 @@ export const copy = {
   invite: (name: string, code: string) =>
     `Chào ${name} 🌿\n` +
     `Đời Sống Xanh đã tạo mã mời kết nối tài khoản Zalo để bạn nhận công việc.\n` +
-    `Bạn hãy quan tâm OA Đời Sống Xanh rồi gửi mã: ${code} cho OA nhé.\n` +
+    `1. Mở Zalo công ty tại: ${ZALO_COMPANY_URL}\n` +
+    `2. Bấm "Quan tâm" rồi gửi mã: ${code}\n` +
     `Sau khi kết nối, công việc sẽ được gửi cho bạn qua Zalo.`,
   linkNotFound:
     "Mã mời không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại với quản lý.",

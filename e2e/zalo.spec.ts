@@ -110,7 +110,7 @@ test.describe("zalo linking", () => {
     ).toBeVisible();
 
     await simulatorOpen(page, zaloUserId);
-    await page.getByRole("button", { name: /Follow OA/ }).click();
+    await page.getByRole("button", { name: /Follow Zalo/ }).click();
     await expect(page.getByText(/đang tạm ngưng/).first()).toBeVisible();
 
     await page.goto(`/employees/${employeeId}`);

@@ -155,7 +155,7 @@ async function main() {
     messageIdOf(
       await cs({
         text:
-          "🧪 Khảo sát Zalo OA (1/10) — Tin văn bản thường.\n" +
+          "🧪 Khảo sát Zalo công ty (1/10) — Tin văn bản thường.\n" +
           "Zalo không hỗ trợ in đậm/nghiêng/markdown; chỉ có xuống dòng, emoji và link trần.",
       }),
     ),
@@ -306,7 +306,7 @@ async function main() {
 
   // 8. Sticker (ids come from stickers.zaloapp.com).
   await step("sticker", async () => {
-    await cs({ text: "(8/10) Sticker — OA gửi sticker trực tiếp." });
+    await cs({ text: "(8/10) Sticker — Zalo công ty gửi sticker trực tiếp." });
     const ids = ["bfe458bf64fa8da4d4eb", "87521"];
     let lastError = "no sticker id";
     for (const id of ids) {
@@ -411,10 +411,10 @@ async function main() {
     messageIdOf(
       await cs({
         text:
-          "✅ Hết khảo sát Zalo OA.\n" +
+          "✅ Hết khảo sát Zalo công ty.\n" +
           "Không áp dụng cho 1-1: tin giao dịch/quảng cáo & ZBS (cần template " +
           "đăng ký trước), broadcast, nhóm GMF, người dùng ẩn danh.\n" +
-          "Các loại trên đây là toàn bộ thứ OA có thể gửi cho một người.",
+          "Các loại trên đây là toàn bộ thứ Zalo công ty có thể gửi cho một người.",
       }),
     ),
   );

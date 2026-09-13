@@ -105,7 +105,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
             <div
               className={`mt-1 text-[10px] ${row.direction === "out" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
             >
-              {row.direction === "out" ? "OA →" : "→ OA"} · {row.eventName}
+              {row.direction === "out" ? "Zalo →" : "→ Zalo"} · {row.eventName}
             </div>
           </div>
         ))}
@@ -144,7 +144,7 @@ export function Simulator({ linked }: { linked: LinkedEmployee[] }) {
             disabled={busy}
             onClick={() => send({ kind: "follow" })}
           >
-            + Follow OA
+            + Follow Zalo
           </Button>
           <Button
             variant="outline"

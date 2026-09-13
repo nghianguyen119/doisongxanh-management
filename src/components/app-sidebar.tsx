@@ -54,7 +54,7 @@ const NAV_MAIN = [
 
 const NAV_SECONDARY = [
   {
-    title: "Zalo OA",
+    title: "Zalo công ty",
     url: "/settings/zalo",
     icon: <ChatCircleIcon weight="duotone" color="#64748b" />,
   },

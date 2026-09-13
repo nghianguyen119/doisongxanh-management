@@ -34,8 +34,8 @@ describe("describeInbound", () => {
   });
 
   it("labels follow and unfollow", () => {
-    expect(describeInbound("follow", {})).toBe("Theo dõi OA");
-    expect(describeInbound("unfollow", {})).toBe("Bỏ theo dõi OA");
+    expect(describeInbound("follow", {})).toBe("Theo dõi Zalo công ty");
+    expect(describeInbound("unfollow", {})).toBe("Bỏ theo dõi Zalo công ty");
   });
 });
 

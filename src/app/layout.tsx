@@ -9,7 +9,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "Đời Sống Xanh — Quản lý công việc",
-  description: "Cổng quản lý công việc, giao việc qua Zalo OA.",
+  description: "Cổng quản lý công việc, giao việc qua Zalo công ty.",
   icons: { icon: "/logo.png" },
 };
 

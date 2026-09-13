@@ -50,9 +50,9 @@ export function describeInbound(
         .join(" • ");
     }
     case "follow":
-      return "Theo dõi OA";
+      return "Theo dõi Zalo công ty";
     case "unfollow":
-      return "Bỏ theo dõi OA";
+      return "Bỏ theo dõi Zalo công ty";
     default:
       return preview(p);
   }

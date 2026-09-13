@@ -23,8 +23,8 @@ export default async function ZaloSettingsPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader
-        title="Zalo OA"
-        description="Trạng thái kết nối Official Account và công cụ mô phỏng."
+        title="Zalo công ty"
+        description="Trạng thái kết nối Zalo công ty và công cụ mô phỏng."
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -74,7 +74,7 @@ export default async function ZaloSettingsPage() {
         <h2 className="font-semibold">Tin nhắn khách hàng</h2>
         <p className="mt-1 mb-3 text-xs text-muted-foreground">
           Tin nhắn Zalo từ người chưa kết nối nhân viên. Bot đã tự động phản hồi;
-          quản lý trả lời thủ công trong ứng dụng Zalo OA.
+          quản lý trả lời thủ công trong Zalo công ty.
         </p>
         {clientMessages.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có tin nhắn nào.</p>

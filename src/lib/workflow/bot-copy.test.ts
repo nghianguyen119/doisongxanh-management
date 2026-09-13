@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BTN,
   ONBOARDING_TASK,
+  ZALO_COMPANY_URL,
   copy,
   taskCardText,
   taskNoticeText,
@@ -71,11 +72,12 @@ describe("bot-copy", () => {
     expect(copy.pickMenu(5)).toContain("5 việc");
   });
 
-  it("builds a copy-ready invite with the employee name and code", () => {
+  it("builds a copy-ready invite with the company link, employee name and code", () => {
     const text = copy.invite("Nguyễn Văn A", "MKTP");
     expect(text).toContain("Nguyễn Văn A");
     expect(text).toContain("MKTP");
-    expect(text).toContain("quan tâm OA");
+    expect(text).toContain("Zalo công ty");
+    expect(text).toContain(ZALO_COMPANY_URL);
   });
 
   it("explains the buttons in the onboarding guide", () => {
