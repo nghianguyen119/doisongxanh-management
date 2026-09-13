@@ -130,10 +130,10 @@ export function HeroTile({
     href: string;
   }[] = [
     {
-      label: "Đang mở",
-      value: open,
+      label: "Đang thực hiện",
+      value: counts.in_progress,
       tone: "text-foreground",
-      href: tasksHref([{ id: "status", value: OPEN_TASK_STATUSES }]),
+      href: tasksHref([{ id: "status", value: ["in_progress"] }]),
     },
     {
       label: "Quá hạn",
