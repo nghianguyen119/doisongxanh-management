@@ -164,3 +164,10 @@ export function actorLabel(
   }
   return "Hệ thống";
 }
+
+/** Role shown next to an actor's name, or null for system events. */
+export function actorRole(actorType: string): string | null {
+  if (actorType === "employee") return "Nhân viên";
+  if (actorType === "manager") return "Quản lý";
+  return null;
+}

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import {
   actorLabel,
+  actorRole,
   eventPayload,
   type ActorContext,
   type TaskEventRow,
@@ -101,6 +102,8 @@ export function ActivityTimeline({
             const fields = payload.fields
               ?.map((field) => FIELD_LABEL[field])
               .filter(Boolean);
+            const actor = actorLabel(event.actorType, event.actorId, actorCtx);
+            const role = actorRole(event.actorType);
 
             return (
               <li key={event.id} className="flex gap-3 py-3.5">
@@ -142,7 +145,8 @@ export function ActivityTimeline({
                   </div>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {actorLabel(event.actorType, event.actorId, actorCtx)}
+                    {actor}
+                    {role && role !== actor && <> · {role}</>}
                     {assignedName && <> · giao cho {assignedName}</>}
                   </p>
 
