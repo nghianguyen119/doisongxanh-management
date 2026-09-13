@@ -50,7 +50,7 @@ export function StatusMixTile({
       />
 
       <div className="relative flex flex-1 flex-col p-6 @3xl/main:p-7">
-        <BentoHeader label="Cơ cấu trạng thái" />
+        <BentoHeader label="Tình hình công việc" />
 
         <div className="relative mx-auto mt-5 h-[196px] w-full max-w-[220px]">
           {data.length === 0 ? (

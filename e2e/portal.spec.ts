@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 const PAGES: [path: string, heading: string, level: 1 | 2][] = [
   // The dashboard leans on the header's "Tổng quan"; its first heading is the
   // status-mix tile, so it is matched at level 2 instead of the page title.
-  ["/dashboard", "Cơ cấu trạng thái", 2],
+  ["/dashboard", "Tình hình công việc", 2],
   ["/tasks", "Công việc", 1],
   ["/tasks/new", "Tạo công việc", 1],
   ["/employees", "Nhân viên", 1],
