@@ -2,12 +2,14 @@ import { getDashboardData } from "@/lib/queries";
 import type { TaskStatus } from "@/lib/workflow/task-status";
 import { ActivityTile } from "@/components/dashboard/activity-tile";
 import { HeroTile } from "@/components/dashboard/hero-tile";
+import { IssueQueueTile } from "@/components/dashboard/issue-queue-tile";
 import { OverdueTile } from "@/components/dashboard/overdue-tile";
 import { StatusMixTile } from "@/components/dashboard/status-mix-tile";
 import { WorkloadTile } from "@/components/dashboard/workload-tile";
 
 export default async function DashboardPage() {
-  const { statusCounts, overdue, workload, recent } = await getDashboardData();
+  const { statusCounts, overdue, workload, recent, blocked } =
+    await getDashboardData();
 
   const counts: Record<TaskStatus, number> = {
     assigned: statusCounts.assigned ?? 0,
@@ -47,9 +49,14 @@ export default async function DashboardPage() {
         className="@xl/main:col-span-6 @4xl/main:col-span-8"
       />
 
+      <IssueQueueTile
+        blocked={blocked}
+        className="@xl/main:col-span-6 @4xl/main:col-span-8"
+      />
+
       <ActivityTile
         recent={recent}
-        className="@xl/main:col-span-6 @4xl/main:col-span-8"
+        className="@xl/main:col-span-6 @4xl/main:col-span-12"
       />
     </div>
   );

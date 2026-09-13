@@ -29,6 +29,7 @@ import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
 import type { TaskStatus } from "@/lib/workflow/task-status";
 import type { ExtendedColumnFilter } from "@/types/data-table";
 import type { KanbanTask } from "@/components/kanban/columns";
+import type { DashboardBlockedTask } from "@/components/dashboard/issue-queue-tile";
 
 export async function getDashboardData() {
   const statusRows = await db
@@ -84,7 +85,100 @@ export async function getDashboardData() {
     .orderBy(desc(taskEvent.createdAt))
     .limit(15);
 
-  return { statusCounts, overdue, workload, recent };
+  const blockedRows = await db.query.task.findMany({
+    where: eq(task.status, "blocked"),
+    with: {
+      assignee: true,
+      events: {
+        where: eq(taskEvent.type, "issue_reported"),
+        orderBy: desc(taskEvent.createdAt),
+        limit: 1,
+      },
+    },
+  });
+
+  const blockedIds = blockedRows.map((row) => row.id);
+
+  const blockMarks = blockedIds.length
+    ? await db
+        .select({
+          taskId: taskEvent.taskId,
+          createdAt: taskEvent.createdAt,
+        })
+        .from(taskEvent)
+        .where(
+          and(
+            inArray(taskEvent.taskId, blockedIds),
+            eq(taskEvent.type, "status_changed"),
+            sql`${taskEvent.payload}->>'to' = 'blocked'`,
+          ),
+        )
+        .orderBy(desc(taskEvent.createdAt))
+    : [];
+
+  const imageRows = blockedIds.length
+    ? await db
+        .select({ taskId: taskAttachment.taskId, n: count() })
+        .from(taskAttachment)
+        .where(
+          and(
+            inArray(taskAttachment.taskId, blockedIds),
+            eq(taskAttachment.kind, "image"),
+          ),
+        )
+        .groupBy(taskAttachment.taskId)
+    : [];
+
+  const latestBlockMark = new Map<string, Date>();
+  for (const mark of blockMarks) {
+    if (!latestBlockMark.has(mark.taskId)) {
+      latestBlockMark.set(mark.taskId, mark.createdAt);
+    }
+  }
+
+  const imageCounts = new Map(
+    imageRows.map((row) => [row.taskId, Number(row.n)]),
+  );
+
+  const priorityRank: Record<DashboardBlockedTask["priority"], number> = {
+    urgent: 0,
+    high: 1,
+    normal: 2,
+    low: 3,
+  };
+
+  const blocked: DashboardBlockedTask[] = blockedRows
+    .map((row) => {
+      const issue = row.events[0] ?? null;
+      const text = issue?.payload.text;
+
+      return {
+        id: row.id,
+        refNo: row.refNo,
+        title: row.title,
+        priority: row.priority,
+        dueAt: row.dueAt,
+        assignee: row.assignee ? { name: row.assignee.name } : null,
+        blockedSince:
+          issue?.createdAt ?? latestBlockMark.get(row.id) ?? row.updatedAt,
+        issue: issue
+          ? {
+              text: typeof text === "string" ? text : null,
+              createdAt: issue.createdAt,
+              actorType: issue.actorType,
+              actorId: issue.actorId,
+            }
+          : null,
+        imageCount: imageCounts.get(row.id) ?? 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        priorityRank[a.priority] - priorityRank[b.priority] ||
+        a.blockedSince.getTime() - b.blockedSince.getTime(),
+    );
+
+  return { statusCounts, overdue, workload, recent, blocked };
 }
 
 export type TableQueryParams = {
