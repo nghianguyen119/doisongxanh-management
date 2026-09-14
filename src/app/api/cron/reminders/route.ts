@@ -75,10 +75,14 @@ async function handle(req: NextRequest) {
       ? await sendReminder(card, row.employee.zaloUserId, overdue)
       : ({ ok: false as const, error: "not_linked" });
 
-    // Android app channel: urgent overdue work joins the loud-alert chain;
-    // everything else is a normal one-shot reminder.
+    // Android app channel: urgent overdue work joins the loud-alert chain,
+    // but never re-alarm work the employee already acknowledged; everything
+    // else is a normal one-shot reminder.
     const loud =
-      overdue && row.task.priority === "urgent" && row.task.alertDeliveryId;
+      overdue &&
+      row.task.priority === "urgent" &&
+      row.task.alertDeliveryId &&
+      !row.task.acknowledgedAt;
     const mobile = await notifyMobileTask({
       employeeId: row.employee.id,
       kind: loud ? "task_alert" : "task_reminder",

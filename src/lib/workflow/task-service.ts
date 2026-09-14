@@ -490,10 +490,15 @@ export async function remindTask(input: {
 
   // A manual nudge of urgent work joins the loud-alert chain (starting a
   // batch if the assignment never had one); everything else is a normal
-  // reminder.
+  // reminder. A fresh loud batch is a new acknowledgement cycle, so an
+  // already-acknowledged task must ask for «Đã nhận» again.
   let alertFields: Partial<typeof task.$inferInsert> = {};
   if (t.priority === "urgent" && !t.alertDeliveryId) {
-    alertFields = alertBatchPatch("urgent");
+    alertFields = {
+      ...alertBatchPatch("urgent"),
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+    };
   }
   const taskRow = Object.keys(alertFields).length
     ? ((await db
