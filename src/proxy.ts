@@ -9,8 +9,9 @@ import { isDevAuthBypassed } from "@/env";
  *
  * `/my` is the employee-facing read-only page; it authenticates with its own
  * signed token and must stay reachable without a manager session.
+ * `/zalo-login` is the Zalo OAuth test page, reachable without a session too.
  */
-const PUBLIC_PATHS = ["/login", "/my"];
+const PUBLIC_PATHS = ["/login", "/my", "/zalo-login"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

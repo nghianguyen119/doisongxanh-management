@@ -32,6 +32,15 @@ export const env = createEnv({
     ZALO_OA_ACCESS_TOKEN: z.string().optional().default(""),
     ZALO_OA_REFRESH_TOKEN: z.string().optional().default(""),
 
+    /**
+     * Zalo Login ("Đăng nhập bằng Zalo") — a separate developer app from the
+     * OA above, used to let employees sign into the web with their personal
+     * Zalo account (OAuth v4 + PKCE). See src/lib/zalo-login.ts and the
+     * /zalo-login test page. Unset disables the flow.
+     */
+    ZALO_LOGIN_APP_ID: z.string().optional().default(""),
+    ZALO_LOGIN_APP_SECRET: z.string().optional().default(""),
+
     /** Bearer token guarding /api/cron/reminders. Unset = endpoint disabled. */
     CRON_SECRET: z.string().optional().default(""),
 
@@ -78,6 +87,8 @@ export const env = createEnv({
     ZALO_OA_SECRET: process.env.ZALO_OA_SECRET,
     ZALO_OA_ACCESS_TOKEN: process.env.ZALO_OA_ACCESS_TOKEN,
     ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
+    ZALO_LOGIN_APP_ID: process.env.ZALO_LOGIN_APP_ID,
+    ZALO_LOGIN_APP_SECRET: process.env.ZALO_LOGIN_APP_SECRET,
     CRON_SECRET: process.env.CRON_SECRET,
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
@@ -132,4 +143,9 @@ export function isRealSendTesterEnabled(): boolean {
  */
 export function isDevAuthBypassed(): boolean {
   return env.AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
+}
+
+/** The Zalo Login flow only works once both app credentials are set. */
+export function isZaloLoginConfigured(): boolean {
+  return Boolean(env.ZALO_LOGIN_APP_ID && env.ZALO_LOGIN_APP_SECRET);
 }
