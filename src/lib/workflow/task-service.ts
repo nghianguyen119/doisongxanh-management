@@ -1,13 +1,24 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, taskAttachment, taskEvent } from "@/db/schema";
 import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
+import * as mobileNotify from "@/lib/mobile/notify";
 import type { TaskCardInput } from "./bot-copy";
 import * as notify from "./notification-service";
 import type {
   NotificationKind,
   NotifyResult,
 } from "./notification-service";
+import {
+  NUDGE_DAILY_CAP,
+  NUDGE_LEVELS,
+  isWithinWorkHours,
+  nextWorkStart,
+  nudgeLevelFor,
+  vnDayKey,
+  type NudgeLevel,
+} from "./nudge";
 import { statusesAllowedToReach, canTransition, isClosed, type TaskStatus } from "./task-status";
 
 type TaskRow = typeof task.$inferSelect;
@@ -45,6 +56,71 @@ function toCard(t: TaskRow): TaskCardInput {
     dueAt: t.dueAt,
   };
 }
+
+function toMobileCard(t: TaskRow) {
+  return { id: t.id, ref: taskRef(t.refNo), title: t.title, dueAt: t.dueAt };
+}
+
+/**
+ * Mobile push/inbox is best-effort like Zalo: a failure must not fail the
+ * mutation, and the inbox row is written even when FCM is not configured.
+ */
+async function notifyMobileEmployee(
+  t: TaskRow,
+  kind: mobileNotify.MobilePushKind,
+  extra: {
+    text?: string;
+    deliveryId?: string;
+    inbox?: boolean;
+  } = {},
+): Promise<mobileNotify.MobileNotifyResult> {
+  if (!t.assigneeId) return { ok: false, error: "not_assigned" };
+  try {
+    return await mobileNotify.notifyMobileTask({
+      employeeId: t.assigneeId,
+      kind,
+      task: toMobileCard(t),
+      ...extra,
+    });
+  } catch (err) {
+    console.error("[mobile] notify failed", err);
+    return { ok: false, error: "send_failed" };
+  }
+}
+
+/**
+ * Fields for an assignment's next acknowledgement cycle. Urgent work starts a
+ * loud-alert batch (delivery id + attempt 1); anything else clears any batch
+ * left over from a previous assignment.
+ */
+function alertBatchPatch(
+  priority: TaskRow["priority"],
+): Partial<typeof task.$inferInsert> {
+  if (priority !== "urgent") {
+    return {
+      alertDeliveryId: null,
+      alertAttempts: 0,
+      lastAlertAt: null,
+      escalationLevel: 0,
+    };
+  }
+  return {
+    alertDeliveryId: `dlv-${randomUUID()}`,
+    alertAttempts: 1,
+    lastAlertAt: new Date(),
+    escalationLevel: 1,
+  };
+}
+
+/** A material change (everything but the description) restarts the ack cycle. */
+const ACK_RESET_PATCH: Partial<typeof task.$inferInsert> = {
+  acknowledgedAt: null,
+  acknowledgedBy: null,
+  escalationLevel: 0,
+  alertDeliveryId: null,
+  alertAttempts: 0,
+  lastAlertAt: null,
+};
 
 async function getTask(taskId: string): Promise<TaskRow | undefined> {
   return db.query.task.findFirst({ where: eq(task.id, taskId) });
@@ -193,6 +269,23 @@ export async function updateTask(input: {
 
   const dueChanged = before.dueAt?.getTime() !== input.dueAt?.getTime();
 
+  const changed = (["title", "description", "priority", "dueAt"] as const).filter(
+    (k) => {
+      const next =
+        k === "title"
+          ? input.title
+          : k === "description"
+            ? (input.description ?? null)
+            : k === "priority"
+              ? input.priority
+              : (input.dueAt ?? null);
+      return String(before[k] ?? "") !== String(next ?? "");
+    },
+  );
+  // Description edits are invisible to the employee's work; everything else is
+  // material and restarts the acknowledgement cycle (so it alerts again).
+  const materialChanged = changed.some((k) => k !== "description");
+
   const [row] = await db
     .update(task)
     .set({
@@ -204,13 +297,13 @@ export async function updateTask(input: {
       // A moved deadline deserves a fresh reminder instead of being throttled
       // out by the previous one.
       ...(dueChanged ? { lastRemindedAt: null } : {}),
+      ...(materialChanged
+        ? { ...ACK_RESET_PATCH, ...alertBatchPatch(input.priority) }
+        : {}),
     })
     .where(eq(task.id, input.taskId))
     .returning();
 
-  const changed = (["title", "description", "priority", "dueAt"] as const).filter(
-    (k) => String(before[k] ?? "") !== String(row[k] ?? ""),
-  );
   if (changed.length === 0) return { ok: true, task: row };
 
   await logEvent(input.taskId, "updated", { type: "manager", id: input.actorId }, {
@@ -219,12 +312,19 @@ export async function updateTask(input: {
 
   // Tell the employee only when something they act on actually moved.
   let zalo: NotifyResult | undefined;
-  if (changed.some((k) => k !== "description")) {
+  if (materialChanged) {
     zalo = await notifyEmployee(
       input.taskId,
       "updated",
       await assigneeZaloId(row),
       (z) => notify.notifyUpdated(toCard(row), z),
+    );
+    await notifyMobileEmployee(
+      row,
+      row.priority === "urgent" ? "task_urgent" : "task_updated",
+      row.priority === "urgent" && row.alertDeliveryId
+        ? { deliveryId: row.alertDeliveryId }
+        : {},
     );
   }
   return { ok: true, task: row, zalo };
@@ -244,11 +344,19 @@ export async function assignTask(input: {
     return { ok: false, reason: "invalid_assignee" };
   }
 
+  const before = await getTask(input.taskId);
+  if (!before) return { ok: false, reason: "not_found" };
+
   const res = await transition(input.taskId, "assigned", {
     assigneeId: input.assigneeId,
     assignedAt: new Date(),
     completedAt: null,
     lastRemindedAt: null,
+    startedAt: null,
+    verifiedAt: null,
+    // A new assignment is a fresh acknowledgement cycle.
+    ...ACK_RESET_PATCH,
+    ...alertBatchPatch(before.priority),
   });
   if (!res.ok) return res;
 
@@ -267,6 +375,13 @@ export async function assignTask(input: {
     await assigneeZaloId(res.task),
     (z) => notify.notifyAssigned(toCard(res.task), z),
   );
+  await notifyMobileEmployee(
+    res.task,
+    res.task.priority === "urgent" ? "task_urgent" : "task_new",
+    res.task.alertDeliveryId
+      ? { deliveryId: res.task.alertDeliveryId }
+      : {},
+  );
   return { ...res, zalo };
 }
 
@@ -284,6 +399,7 @@ export async function unassignTask(input: {
       completedAt: null,
       lastRemindedAt: null,
       updatedAt: new Date(),
+      ...ACK_RESET_PATCH,
     })
     .where(and(eq(task.id, input.taskId), eq(task.status, "assigned")))
     .returning();
@@ -308,7 +424,12 @@ export async function verifyTask(input: {
   taskId: string;
   actorId: string;
 }): Promise<TaskResult> {
-  const res = await transition(input.taskId, "verified");
+  const res = await transition(input.taskId, "verified", {
+    verifiedAt: new Date(),
+    alertDeliveryId: null,
+    alertAttempts: 0,
+    lastAlertAt: null,
+  });
   if (!res.ok) return res;
 
   await logEvent(input.taskId, "status_changed", {
@@ -322,6 +443,7 @@ export async function verifyTask(input: {
     await assigneeZaloId(res.task),
     (z) => notify.notifyVerified(toCard(res.task), z),
   );
+  await notifyMobileEmployee(res.task, "task_updated");
   return { ...res, zalo };
 }
 
@@ -330,7 +452,11 @@ export async function cancelTask(input: {
   actorId: string;
   reason?: string;
 }): Promise<TaskResult> {
-  const res = await transition(input.taskId, "cancelled");
+  const res = await transition(input.taskId, "cancelled", {
+    alertDeliveryId: null,
+    alertAttempts: 0,
+    lastAlertAt: null,
+  });
   if (!res.ok) return res;
 
   await logEvent(input.taskId, "status_changed", {
@@ -344,6 +470,7 @@ export async function cancelTask(input: {
     await assigneeZaloId(res.task),
     (z) => notify.notifyCancelled(toCard(res.task), z),
   );
+  await notifyMobileEmployee(res.task, "task_updated");
   return { ...res, zalo };
 }
 
@@ -361,10 +488,31 @@ export async function remindTask(input: {
   if (!t) return { ok: false, reason: "not_found" };
   if (isClosed(t.status)) return { ok: false, reason: "closed", task: t };
 
+  // A manual nudge of urgent work joins the loud-alert chain (starting a
+  // batch if the assignment never had one); everything else is a normal
+  // reminder.
+  let alertFields: Partial<typeof task.$inferInsert> = {};
+  if (t.priority === "urgent" && !t.alertDeliveryId) {
+    alertFields = alertBatchPatch("urgent");
+  }
+  const taskRow = Object.keys(alertFields).length
+    ? ((await db
+        .update(task)
+        .set({ ...alertFields, updatedAt: new Date() })
+        .where(eq(task.id, t.id))
+        .returning())[0] ?? t)
+    : t;
+
   const zaloUserId = await assigneeZaloId(t);
   const zalo: NotifyResult = zaloUserId
     ? await notify.sendReminder(toCard(t), zaloUserId, input.overdue)
     : { ok: false, error: "not_linked" };
+
+  await notifyMobileEmployee(
+    taskRow,
+    taskRow.priority === "urgent" ? "task_alert" : "task_reminder",
+    taskRow.alertDeliveryId ? { deliveryId: taskRow.alertDeliveryId } : {},
+  );
 
   try {
     await logEvent(
@@ -389,7 +537,7 @@ export async function remindTask(input: {
       .set({ lastRemindedAt: new Date() })
       .where(eq(task.id, t.id));
   }
-  return { ok: true, task: t, zalo };
+  return { ok: true, task: taskRow, zalo };
 }
 
 export async function addManagerComment(input: {
@@ -410,6 +558,7 @@ export async function addManagerComment(input: {
     await assigneeZaloId(t),
     (z) => notify.forwardManagerComment(toCard(t), z, input.text),
   );
+  await notifyMobileEmployee(t, "message", { text: input.text });
   return { ok: true, task: t, zalo };
 }
 
@@ -449,6 +598,10 @@ export async function moveTaskTo(input: {
   if (input.to === "done") {
     // Match the Zalo completion path; `transition` only clears it otherwise.
     extra.completedAt = new Date();
+    // Done work no longer alarms.
+    extra.alertDeliveryId = null;
+    extra.alertAttempts = 0;
+    extra.lastAlertAt = null;
   }
   if (OPEN_TASK_STATUSES.includes(input.to)) {
     // Moving back into an open column deserves fresh reminders.
@@ -474,14 +627,20 @@ export async function moveTaskTo(input: {
 export async function startTask(input: {
   taskId: string;
   employeeId: string;
+  attachmentUrls?: string[];
 }): Promise<TaskResult> {
-  const res = await transition(input.taskId, "in_progress");
+  // Resuming after an issue must not overwrite the original start time.
+  const existing = await getTask(input.taskId);
+  const res = await transition(input.taskId, "in_progress", {
+    startedAt: existing?.startedAt ?? new Date(),
+  });
   if (!res.ok) return res;
 
-  await logEvent(input.taskId, "status_changed", {
+  const eventId = await logEvent(input.taskId, "status_changed", {
     type: "employee",
     id: input.employeeId,
   }, { to: "in_progress" });
+  await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
   const zalo = await notifyEmployee(
     input.taskId,
@@ -495,14 +654,22 @@ export async function startTask(input: {
 export async function completeTask(input: {
   taskId: string;
   employeeId: string;
+  attachmentUrls?: string[];
 }): Promise<TaskResult> {
-  const res = await transition(input.taskId, "done", { completedAt: new Date() });
+  const res = await transition(input.taskId, "done", {
+    completedAt: new Date(),
+    // Done work no longer alarms.
+    alertDeliveryId: null,
+    alertAttempts: 0,
+    lastAlertAt: null,
+  });
   if (!res.ok) return res;
 
-  await logEvent(input.taskId, "status_changed", {
+  const eventId = await logEvent(input.taskId, "status_changed", {
     type: "employee",
     id: input.employeeId,
   }, { to: "done" });
+  await saveAttachments(input.taskId, eventId, input.attachmentUrls);
 
   const zalo = await notifyEmployee(
     input.taskId,
@@ -565,6 +732,192 @@ async function saveAttachments(
   await db.insert(taskAttachment).values(
     urls.map((url) => ({ taskId, eventId, kind: "image" as const, url })),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Mobile app: acknowledgement and manager nudges
+// ---------------------------------------------------------------------------
+
+export type AckResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" };
+
+/**
+ * The app's «Đã nhận» button. Records `acknowledgedAt` and stops the alert
+ * chain for the current batch. Idempotent; a stale `deliveryId` (an old push
+ * that arrived after a newer assignment) never clears the newer alert.
+ */
+export async function acknowledgeTask(input: {
+  taskId: string;
+  employeeId: string;
+  deliveryId?: string;
+}): Promise<AckResult> {
+  const t = await getTask(input.taskId);
+  if (!t || t.assigneeId !== input.employeeId) {
+    return { ok: false, reason: "not_found" };
+  }
+  if (
+    input.deliveryId &&
+    t.alertDeliveryId &&
+    t.alertDeliveryId !== input.deliveryId
+  ) {
+    // An old batch's ack must not silence the current one.
+    return { ok: true };
+  }
+
+  await db
+    .update(task)
+    .set({
+      acknowledgedAt: t.acknowledgedAt ?? new Date(),
+      acknowledgedBy: input.employeeId,
+      alertDeliveryId: null,
+      alertAttempts: 0,
+      lastAlertAt: null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(task.id, input.taskId), eq(task.assigneeId, input.employeeId)));
+
+  await mobileNotify.markTaskNotificationsRead(input.employeeId, input.taskId);
+  return { ok: true };
+}
+
+export type NudgeFailure =
+  | "not_found"
+  | "not_waiting"
+  | "too_soon"
+  | "outside_hours"
+  | "daily_cap"
+  | "cooldown"
+  | "escalated"
+  | "text_required";
+
+export type NudgeResult =
+  | {
+      ok: true;
+      task: TaskRow;
+      nudgeCount: number;
+      nextNudgeAt: Date | null;
+    }
+  | {
+      ok: false;
+      reason: NudgeFailure;
+      task?: TaskRow;
+      availableAt?: Date | null;
+    };
+
+/**
+ * Employee nudges a manager while work waits: `blocked` (issue not resolved)
+ * or `done` (completion not verified). The server re-derives the level from
+ * how long the task has been waiting and enforces the same cooldown / work
+ * hours / daily cap the app shows, so a modified client cannot spam managers.
+ */
+export async function nudgeManager(input: {
+  taskId: string;
+  employeeId: string;
+  level: NudgeLevel;
+  text?: string;
+}): Promise<NudgeResult> {
+  const t = await getTask(input.taskId);
+  if (!t || t.assigneeId !== input.employeeId) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  let waitingSince: Date | null = null;
+  let trigger: "issue" | "approval" | null = null;
+  if (t.status === "done") {
+    const fallback = await latestEmployeeEvent(input.taskId);
+    waitingSince = t.completedAt ?? fallback?.createdAt ?? null;
+    trigger = "approval";
+  } else if (t.status === "blocked") {
+    const issue = await db.query.taskEvent.findFirst({
+      where: and(
+        eq(taskEvent.taskId, input.taskId),
+        eq(taskEvent.type, "issue_reported"),
+        eq(taskEvent.actorType, "employee"),
+      ),
+      orderBy: (e, { desc }) => desc(e.createdAt),
+    });
+    waitingSince = issue?.createdAt ?? null;
+    trigger = "issue";
+  }
+  if (!waitingSince || !trigger) return { ok: false, reason: "not_waiting", task: t };
+
+  const now = new Date();
+  const waitingMs = now.getTime() - waitingSince.getTime();
+  if (waitingMs < NUDGE_LEVELS[0].afterMs) {
+    return {
+      ok: false,
+      reason: "too_soon",
+      task: t,
+      availableAt: new Date(waitingSince.getTime() + NUDGE_LEVELS[0].afterMs),
+    };
+  }
+  if (!isWithinWorkHours(now)) {
+    return { ok: false, reason: "outside_hours", task: t, availableAt: nextWorkStart(now) };
+  }
+
+  const rule = nudgeLevelFor(waitingMs);
+  const history = await db.query.taskEvent.findMany({
+    where: and(
+      eq(taskEvent.taskId, input.taskId),
+      eq(taskEvent.type, "nudge_sent"),
+    ),
+    orderBy: (e, { desc }) => desc(e.createdAt),
+  });
+
+  const today = vnDayKey(now);
+  const todayCount = history.filter(
+    (event) => vnDayKey(event.createdAt) === today,
+  ).length;
+  if (todayCount >= NUDGE_DAILY_CAP) {
+    return { ok: false, reason: "daily_cap", task: t, availableAt: nextWorkStart(now) };
+  }
+
+  const last = history[0];
+  if (last) {
+    const cooldownEnd = new Date(last.createdAt.getTime() + rule.cooldownMs);
+    if (now < cooldownEnd) {
+      return { ok: false, reason: "cooldown", task: t, availableAt: cooldownEnd };
+    }
+    const lastLevel = Number(last.payload?.level ?? 0);
+    if (lastLevel === 3 && last.createdAt >= waitingSince) {
+      return { ok: false, reason: "escalated", task: t };
+    }
+  }
+
+  if (rule.level === 3 && !input.text?.trim()) {
+    return { ok: false, reason: "text_required", task: t };
+  }
+
+  await db.insert(taskEvent).values({
+    taskId: input.taskId,
+    type: "nudge_sent",
+    actorType: "employee",
+    actorId: input.employeeId,
+    payload: {
+      level: rule.level,
+      requestedLevel: input.level,
+      text: input.text?.trim() || null,
+      trigger,
+    },
+  });
+
+  return {
+    ok: true,
+    task: t,
+    nudgeCount: history.length + 1,
+    nextNudgeAt: new Date(now.getTime() + rule.cooldownMs),
+  };
+}
+
+async function latestEmployeeEvent(taskId: string) {
+  return db.query.taskEvent.findFirst({
+    where: and(
+      eq(taskEvent.taskId, taskId),
+      eq(taskEvent.actorType, "employee"),
+    ),
+    orderBy: (e, { desc }) => desc(e.createdAt),
+  });
 }
 
 export { toCard as taskToCard, getTask };

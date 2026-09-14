@@ -7,6 +7,7 @@ import { formatVN } from "@/lib/time";
 import { Card } from "@/components/ui/card";
 import { deriveEmployeeStats } from "@/components/employee-detail/derive";
 import { KpiStrip } from "@/components/employee-detail/kpi-strip";
+import { MobileCard } from "@/components/employee-detail/mobile-card";
 import { ProfileHero } from "@/components/employee-detail/profile-hero";
 import { TaskLedger } from "@/components/employee-detail/task-ledger";
 import { ZaloCard } from "@/components/employee-detail/zalo-card";
@@ -37,7 +38,8 @@ export default async function EmployeeDetailPage({
   const { id } = await params;
   const data = await getEmployeeDetail(id);
   if (!data) notFound();
-  const { employee: e, tasks, activeInvite } = data;
+  const { employee: e, tasks, activeInvite, mobileDevices, activePairCode } =
+    data;
   const now = new Date();
   const stats = deriveEmployeeStats(tasks, now);
 
@@ -85,6 +87,12 @@ export default async function EmployeeDetailPage({
           </Card>
 
           <ZaloCard employee={e} activeInvite={activeInvite} />
+
+          <MobileCard
+            employeeId={e.id}
+            devices={mobileDevices}
+            activePairCode={activePairCode}
+          />
 
           <Card id="trang-thai" className="scroll-mt-24 gap-0 p-0">
             <div className="border-b border-border/70 px-5 py-4">

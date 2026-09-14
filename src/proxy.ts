@@ -35,9 +35,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Guard everything except Next internals, auth API, the Zalo webhook,
-  // dev endpoints and static assets.
+  // Guard everything except Next internals, auth API, the mobile API (its own
+  // bearer tokens), the Zalo webhook, dev/cron endpoints and static assets.
   matcher: [
-    "/((?!api/auth|api/zalo|api/dev|api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/auth|api/mobile|api/zalo|api/dev|api/cron|_next/static|_next/image|favicon.ico|uploads/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

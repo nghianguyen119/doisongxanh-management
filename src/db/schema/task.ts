@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   index,
+  integer,
   jsonb,
   pgTable,
   serial,
@@ -33,9 +34,36 @@ export const task = pgTable(
     createdBy: text().references(() => user.id, { onDelete: "set null" }),
     dueAt: timestamp({ withTimezone: true }),
     assignedAt: timestamp({ withTimezone: true }),
+    /** When the employee pressed “Bắt đầu” on the mobile app. */
+    startedAt: timestamp({ withTimezone: true }),
     completedAt: timestamp({ withTimezone: true }),
+    /** When a manager verified the completed work (status `verified`). */
+    verifiedAt: timestamp({ withTimezone: true }),
     /** Throttles the due-date nudges sent by /api/cron/reminders. */
     lastRemindedAt: timestamp({ withTimezone: true }),
+    /**
+     * Employee confirmation of the current assignment («Đã nhận»). It is a
+     * task field, not a status: work actions stay governed by `status`.
+     */
+    acknowledgedAt: timestamp({ withTimezone: true }),
+    acknowledgedBy: uuid().references(() => employee.id, {
+      onDelete: "set null",
+    }),
+    /**
+     * How many times the backend has re-alerted this assignment's active
+     * batch. Reset on re-assignment or a material update.
+     */
+    escalationLevel: integer().notNull().default(0),
+    /**
+     * Identifier of the current mobile alert batch, sent to the device in the
+     * push payload and echoed back on `POST /api/mobile/ack`. Null when no
+     * loud alert is active (normal notifications never set it).
+     */
+    alertDeliveryId: text(),
+    /** How many pushes the current alert batch has sent (cap ~10). */
+    alertAttempts: integer().notNull().default(0),
+    /** Throttles the mobile alert repeat loop (~2 minutes). */
+    lastAlertAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

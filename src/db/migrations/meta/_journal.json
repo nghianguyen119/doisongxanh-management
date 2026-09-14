@@ -57,6 +57,13 @@
       "when": 1789211241833,
       "tag": "0007_plain_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789388391457,
+      "tag": "0008_bitter_leper_queen",
+      "breakpoints": true
     }
   ]
 }

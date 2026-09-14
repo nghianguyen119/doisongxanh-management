@@ -3,7 +3,8 @@ import { and, eq, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/db";
 import { employee, task, taskEvent } from "@/db/schema";
 import { env } from "@/env";
-import { OPEN_TASK_STATUSES } from "@/lib/labels";
+import { OPEN_TASK_STATUSES, taskRef } from "@/lib/labels";
+import { notifyMobileTask } from "@/lib/mobile/notify";
 import { sendReminder } from "@/lib/workflow/notification-service";
 import { taskToCard } from "@/lib/workflow/task-service";
 
@@ -21,8 +22,9 @@ const REMIND_EVERY_MS = 12 * 60 * 60 * 1000;
  *
  *   curl -H "Authorization: Bearer $CRON_SECRET" https://host/api/cron/reminders
  *
- * Idempotent: `task.lastRemindedAt` throttles repeats, so running it more
- * often than needed is harmless.
+ * Delivers through whichever channel the employee actually uses: Zalo when
+ * linked, and/or the Android app's devices. Idempotent: `task.lastRemindedAt`
+ * throttles repeats, so running it more often than needed is harmless.
  */
 export async function POST(req: NextRequest) {
   return handle(req);
@@ -45,7 +47,7 @@ async function handle(req: NextRequest) {
 
   const now = Date.now();
   const due = await db
-    .select({ task, zaloUserId: employee.zaloUserId })
+    .select({ task, employee })
     .from(task)
     .innerJoin(employee, eq(employee.id, task.assigneeId))
     .where(
@@ -53,7 +55,6 @@ async function handle(req: NextRequest) {
         inArray(task.status, OPEN_TASK_STATUSES),
         isNotNull(task.dueAt),
         lt(task.dueAt, new Date(now + DUE_SOON_MS)),
-        isNotNull(employee.zaloUserId),
         eq(employee.status, "active"),
         // Never reminded yet, or not since the throttle window.
         or(
@@ -67,11 +68,28 @@ async function handle(req: NextRequest) {
   let sent = 0;
   for (const row of due) {
     const overdue = !!row.task.dueAt && row.task.dueAt.getTime() < now;
-    const res = await sendReminder(
-      taskToCard(row.task),
-      row.zaloUserId!,
-      overdue,
-    );
+    const card = taskToCard(row.task);
+
+    // Zalo channel: only when the employee linked their Zalo account.
+    const zalo = row.employee.zaloUserId
+      ? await sendReminder(card, row.employee.zaloUserId, overdue)
+      : ({ ok: false as const, error: "not_linked" });
+
+    // Android app channel: urgent overdue work joins the loud-alert chain;
+    // everything else is a normal one-shot reminder.
+    const loud =
+      overdue && row.task.priority === "urgent" && row.task.alertDeliveryId;
+    const mobile = await notifyMobileTask({
+      employeeId: row.employee.id,
+      kind: loud ? "task_alert" : "task_reminder",
+      task: {
+        id: row.task.id,
+        ref: taskRef(row.task.refNo),
+        title: row.task.title,
+        dueAt: row.task.dueAt,
+      },
+      deliveryId: loud ? (row.task.alertDeliveryId as string) : undefined,
+    });
 
     // Record the outcome either way: a failed reminder keeps the task in the
     // candidate set, so the manager must be able to see it is not reaching
@@ -83,15 +101,16 @@ async function handle(req: NextRequest) {
         actorType: "system",
         payload: {
           kind: "reminder",
-          ok: res.ok,
-          error: res.ok ? null : res.error,
+          ok: zalo.ok,
+          error: zalo.ok ? null : zalo.error,
           overdue,
+          mobile: { ok: mobile.ok, error: mobile.ok ? null : mobile.error },
         },
       });
     } catch (err) {
       console.error("[reminders] failed to record delivery outcome", err);
     }
-    if (!res.ok) continue;
+    if (!zalo.ok && !mobile.ok) continue;
 
     await db
       .update(task)

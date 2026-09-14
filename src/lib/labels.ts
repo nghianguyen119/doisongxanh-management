@@ -63,6 +63,7 @@ export const TASK_EVENT_LABEL: Record<TaskEventType, string> = {
   attachment_added: "Đính kèm ảnh",
   reminder_sent: "Đã gửi Zalo",
   notification: "Thông báo Zalo",
+  nudge_sent: "Hối quản lý",
 };
 
 export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {

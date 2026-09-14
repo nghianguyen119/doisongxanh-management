@@ -4,9 +4,11 @@ import {
   count,
   desc,
   eq,
+  gt,
   ilike,
   inArray,
   isNotNull,
+  isNull,
   lt,
   ne,
   notInArray,
@@ -17,6 +19,8 @@ import {
   employee,
   employeeInvite,
   employeeStatus,
+  mobileDevice,
+  mobilePairCode,
   task,
   taskAttachment,
   taskEvent,
@@ -461,7 +465,33 @@ export async function getEmployeeDetail(id: string) {
     emp.invites.find((i) => !i.consumedAt && i.expiresAt.getTime() > now) ??
     null;
 
-  return { employee: emp, tasks, activeInvite };
+  const [devices, activePairCode] = await Promise.all([
+    db.query.mobileDevice.findMany({
+      where: and(
+        eq(mobileDevice.employeeId, id),
+        isNull(mobileDevice.revokedAt),
+      ),
+      orderBy: desc(mobileDevice.createdAt),
+    }),
+    db.query.mobilePairCode.findFirst({
+      where: and(
+        eq(mobilePairCode.employeeId, id),
+        isNull(mobilePairCode.consumedAt),
+        gt(mobilePairCode.expiresAt, new Date()),
+      ),
+      orderBy: desc(mobilePairCode.createdAt),
+    }),
+  ]);
+
+  return {
+    employee: emp,
+    tasks,
+    activeInvite,
+    mobileDevices: devices,
+    activePairCode: activePairCode
+      ? { code: activePairCode.code, expiresAt: activePairCode.expiresAt }
+      : null,
+  };
 }
 
 /**

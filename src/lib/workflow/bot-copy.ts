@@ -213,6 +213,33 @@ export const copy = {
   requestInfoTitle: "Đời Sống Xanh muốn kết nối với bạn",
 };
 
+/**
+ * Copy for the Android app's push notifications and inbox rows. Kept with the
+ * bot strings so every employee-facing sentence is tuned in one place.
+ */
+export const mobilePush = {
+  taskNew: (t: TaskLabelInput) => ({
+    title: `Việc mới · ${t.ref}`,
+    body: t.title,
+  }),
+  taskUrgent: (t: TaskLabelInput) => ({
+    title: `KHẨN · ${t.ref}`,
+    body: `Cần xác nhận đã nhận: ${t.title}`,
+  }),
+  taskUpdated: (t: TaskLabelInput) => ({
+    title: `Cập nhật · ${t.ref}`,
+    body: t.title,
+  }),
+  taskReminder: (t: TaskLabelInput) => ({
+    title: `Nhắc hạn · ${t.ref}`,
+    body: t.title,
+  }),
+  managerMessage: (text: string) => ({
+    title: "Tin nhắn từ quản lý",
+    body: text,
+  }),
+} as const;
+
 /** First task every linked employee gets so they can try the buttons safely. */
 export const ONBOARDING_TASK = {
   title: "🌱 Việc làm quen: thử các nút Bắt đầu / Đã xong / Báo sự cố",

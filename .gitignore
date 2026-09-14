@@ -39,6 +39,9 @@ yarn-error.log*
 # local docs cache from @next/codemod
 /.next-docs
 
+# employee-app report photos written at runtime
+/public/uploads/
+
 # vercel
 .vercel
 

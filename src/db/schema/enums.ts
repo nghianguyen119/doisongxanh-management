@@ -32,7 +32,17 @@ export const taskEventType = pgEnum("task_event_type", [
   "attachment_added",
   "reminder_sent",
   "notification",
+  "nudge_sent",
 ]);
+
+/** Notification categories the mobile app's inbox (bell) understands. */
+export const mobileNotificationKind = pgEnum("mobile_notification_kind", [
+  "message",
+  "task",
+  "alert",
+]);
+
+export const mobilePlatform = pgEnum("mobile_platform", ["android", "ios"]);
 
 export const actorType = pgEnum("actor_type", ["manager", "employee", "system"]);
 

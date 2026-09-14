@@ -36,6 +36,15 @@ export const env = createEnv({
     CRON_SECRET: z.string().optional().default(""),
 
     /**
+     * Firebase service account for FCM HTTP v1 pushes to the employee app.
+     * Unset (any of the three) disables push sending; the in-app inbox still
+     * works. `FIREBASE_PRIVATE_KEY` keeps its `\n` escapes in env.
+     */
+    FIREBASE_PROJECT_ID: z.string().optional().default(""),
+    FIREBASE_CLIENT_EMAIL: z.string().optional().default(""),
+    FIREBASE_PRIVATE_KEY: z.string().optional().default(""),
+
+    /**
      * "true" opens the manager portal without sign-in. Requires
      * NODE_ENV != "production" and a fake admin user is assumed. Never
      * enabled in production, even if the flag slips through.
@@ -70,6 +79,9 @@ export const env = createEnv({
     ZALO_OA_ACCESS_TOKEN: process.env.ZALO_OA_ACCESS_TOKEN,
     ZALO_OA_REFRESH_TOKEN: process.env.ZALO_OA_REFRESH_TOKEN,
     CRON_SECRET: process.env.CRON_SECRET,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
     AUTH_BYPASS: process.env.AUTH_BYPASS,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     SENTRY_ORG: process.env.SENTRY_ORG,
